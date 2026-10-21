@@ -1,0 +1,25 @@
+<profile name="webrtc">
+  <!-- SIP over WebSocket for browser softphones (JsSIP or similar).
+       Agents register with their extension and SIP password from FS Extension.
+       Use ws:// locally with the self-signed certificate; use wss:// with a
+       trusted certificate in production. -->
+  <settings>
+    <param name="debug" value="0"/>
+    <param name="sip-trace" value="no"/>
+    <param name="context" value="default"/>
+    <param name="sip-port" value="5067"/>
+    <param name="ws-binding" value=":5066"/>
+    <param name="wss-binding" value=":7443"/>
+    <param name="tls-cert-dir" value="/etc/freeswitch/tls"/>
+    <param name="rtp-ip" value="$${local_ip_v4}"/>
+    <param name="ext-rtp-ip" value="auto-nat"/>
+    <param name="ext-sip-ip" value="auto-nat"/>
+    <param name="auth-calls" value="true"/>
+    <param name="auth-all-packets" value="false"/>
+    <param name="apply-inbound-acl" value="any"/>
+    <param name="inbound-codec-prefs" value="OPUS,PCMU,PCMA,VP8"/>
+    <param name="outbound-codec-prefs" value="OPUS,PCMU,PCMA,VP8"/>
+    <param name="rtp-timeout-sec" value="300"/>
+    <param name="rtp-hold-timeout-sec" value="1800"/>
+  </settings>
+</profile>

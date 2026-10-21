@@ -1,0 +1,97 @@
+# Docker Desktop / Compose v2. Copy .env.example to .env and set the secrets.
+#   docker compose up -d --build
+# The first build compiles FreeSWITCH from source and can take 30-60 minutes.
+name: fs-switch
+
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${FS_SWITCH_DB_ROOT_PASSWORD:?set FS_SWITCH_DB_ROOT_PASSWORD in .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    volumes:
+      - fs-switch-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  frappe:
+    build:
+      context: .
+      dockerfile: docker/frappe/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      FS_SWITCH_SITE: ${FS_SWITCH_SITE:-fs-switch.localhost}
+      FS_SWITCH_ESL_HOST: freeswitch
+      FS_SWITCH_ESL_PORT: 8021
+      FRAPPE_DB_HOST: db
+      FRAPPE_REDIS_CACHE: redis://redis-cache:6379
+      FRAPPE_REDIS_QUEUE: redis://redis-queue:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/method/ping >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 1800s
+    ports:
+      - "8000:8000"   # console: http://fs-switch.localhost:8000/fs-switch
+      - "9000:9000"   # Socket.IO
+    volumes:
+      - fs-switch-sites:/home/frappe/fs-switch-bench/sites
+
+  freeswitch:
+    build:
+      context: .
+      dockerfile: docker/freeswitch/Dockerfile
+    restart: unless-stopped
+    environment:
+      FRAPPE_URL: http://frappe:8000
+      FS_SWITCH_XML_CURL_SECRET: ${FS_SWITCH_XML_CURL_SECRET:?set FS_SWITCH_XML_CURL_SECRET in .env}
+      FS_SWITCH_ESL_PASSWORD: ${FS_SWITCH_ESL_PASSWORD:?set FS_SWITCH_ESL_PASSWORD in .env}
+      FS_SWITCH_PUBLIC_IP: ${FS_SWITCH_PUBLIC_IP:-127.0.0.1}
+      FS_SWITCH_SIP_DOMAIN: ${FS_SWITCH_SIP_DOMAIN:-localhost}
+      FS_SWITCH_DEFAULT_CONTEXT: ${FS_SWITCH_DEFAULT_CONTEXT:-default}
+      FS_SWITCH_MAIN_DID: ${FS_SWITCH_MAIN_DID:-1000}
+      FS_SWITCH_TRUNK_PROXY: ${FS_SWITCH_TRUNK_PROXY:-}
+      FS_SWITCH_TRUNK_USERNAME: ${FS_SWITCH_TRUNK_USERNAME:-}
+      FS_SWITCH_TRUNK_PASSWORD: ${FS_SWITCH_TRUNK_PASSWORD:-}
+      FS_SWITCH_TRUNK_REALM: ${FS_SWITCH_TRUNK_REALM:-}
+    depends_on:
+      frappe:
+        condition: service_healthy
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5066:5066"       # browser WebRTC WebSocket (ws://localhost:5066)
+      - "7443:7443"       # secure WebSocket (needs a trusted certificate)
+      - "16384-16484:16384-16484/udp"
+    volumes:
+      - fs-switch-tls:/etc/freeswitch/tls
+
+volumes:
+  fs-switch-db:
+  fs-switch-sites:
+  fs-switch-tls:

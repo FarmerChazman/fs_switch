@@ -1,0 +1,36 @@
+# Local configuration and secrets
+.env
+.env.local
+*.local
+.secrets
+.softphone-creds.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+.yarn/
+apps/fs_switch/frontend/dist/
+apps/fs_switch/fs_switch/public/console/assets/
+apps/fs_switch/fs_switch/public/console/index.html
+
+# Frappe bench / runtime
+frappe-bench/
+sites/
+logs/
+*.log
+*.pid
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

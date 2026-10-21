@@ -1,0 +1,9 @@
+.git
+.env
+.env.local
+frappe-bench
+node_modules
+apps/fs_switch/frontend/node_modules
+apps/fs_switch/fs_switch/public/console/assets
+logs
+*.log

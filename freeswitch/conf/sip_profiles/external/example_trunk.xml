@@ -1,0 +1,15 @@
+<include>
+  <!-- Template for a carrier SIP gateway. Either fill this in by hand, or set
+       FS_SWITCH_TRUNK_* in .env and let the Docker entrypoint write it.
+       Keep carrier credentials out of source control. -->
+  <gateway name="carrier">
+    <param name="proxy" value="TRUNK_PROXY"/>
+    <param name="realm" value="TRUNK_REALM"/>
+    <param name="username" value="TRUNK_USERNAME"/>
+    <param name="password" value="TRUNK_PASSWORD"/>
+    <param name="register" value="true"/>
+    <param name="caller-id-in-from" value="true"/>
+    <param name="extension-in-contact" value="true"/>
+    <param name="from-domain" value="TRUNK_REALM"/>
+  </gateway>
+</include>

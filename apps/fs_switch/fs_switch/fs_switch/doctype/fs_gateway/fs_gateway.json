@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "autoname": "field:gateway_name",
+ "creation": "2026-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "gateway_name",
+  "enabled",
+  "proxy",
+  "register",
+  "username",
+  "password",
+  "realm",
+  "from_domain",
+  "caller_id",
+  "context",
+  "codec",
+  "description"
+ ],
+ "fields": [
+  {"fieldname": "gateway_name", "fieldtype": "Data", "label": "Gateway name", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},
+  {"fieldname": "proxy", "fieldtype": "Data", "label": "Proxy", "reqd": 1, "in_list_view": 1, "description": "Carrier SIP host, optionally with :port."},
+  {"fieldname": "register", "fieldtype": "Check", "label": "Register with the carrier", "default": "1"},
+  {"fieldname": "username", "fieldtype": "Data", "label": "Username"},
+  {"fieldname": "password", "fieldtype": "Password", "label": "Password"},
+  {"fieldname": "realm", "fieldtype": "Data", "label": "Realm"},
+  {"fieldname": "from_domain", "fieldtype": "Data", "label": "From domain"},
+  {"fieldname": "caller_id", "fieldtype": "Data", "label": "Caller ID"},
+  {"fieldname": "context", "fieldtype": "Data", "label": "Context", "default": "public"},
+  {"fieldname": "codec", "fieldtype": "Data", "label": "Codec preferences", "default": "PCMU,PCMA"},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "FS Switch",
+ "name": "FS Gateway",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

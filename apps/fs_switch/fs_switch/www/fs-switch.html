@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <title>FS Switch</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/fs_switch/images/fs-switch-mark.svg" />
+    <link rel="stylesheet" href="/assets/fs_switch/console/assets/app.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      window.csrf_token = {{ csrf_token | tojson }};
+      window.fs_switch = {
+        site: {{ site_name | tojson }},
+        user: {{ fs_switch_user | tojson }},
+        version: "0.1.0"
+      };
+    </script>
+    <script type="module" src="/assets/fs_switch/console/assets/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+# Frappe-side listener: FreeSWITCH call and call-center events -> Frappe realtime.
+# Install on the Frappe server and adjust User, WorkingDirectory and site name:
+#   sudo cp esl-listener.service /etc/systemd/system/
+#   sudo systemctl enable --now esl-listener
+[Unit]
+Description=FS Switch event listener (FreeSWITCH -> Frappe)
+After=network.target redis-server.service mariadb.service freeswitch.service
+
+[Service]
+Type=simple
+User=frappe
+WorkingDirectory=/home/frappe/frappe-bench
+ExecStart=/home/frappe/frappe-bench/env/bin/bench --site your.site execute fs_switch.esl_listener.run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

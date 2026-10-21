@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" role="img" aria-label="FS Switch">
+  <rect width="64" height="64" rx="14" fill="#0f766e"/>
+  <path d="M16 23h22l-5-5 4-4 12 12-12 12-4-4 5-5H16z" fill="#ffffff"/>
+  <path d="M48 41H26l5 5-4 4-12-12 12-12 4 4-5 5h22z" fill="#99f6e4"/>
+  <text x="78" y="33" font-family="Inter, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#0f172a">FS Switch</text>
+  <text x="79" y="49" font-family="Inter, Segoe UI, sans-serif" font-size="10" letter-spacing="1.5" fill="#64748b">FREESWITCH CONTROL PLANE</text>
+</svg>

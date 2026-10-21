@@ -1,0 +1,44 @@
+{
+ "actions": [],
+ "autoname": "field:queue_name",
+ "creation": "2026-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "queue_name",
+  "display_name",
+  "enabled",
+  "strategy",
+  "max_wait_seconds",
+  "music_on_hold",
+  "backup_queue",
+  "agents",
+  "description"
+ ],
+ "fields": [
+  {"fieldname": "queue_name", "fieldtype": "Data", "label": "Queue name", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "display_name", "fieldtype": "Data", "label": "Display name", "in_list_view": 1},
+  {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},
+  {"fieldname": "strategy", "fieldtype": "Select", "label": "Strategy", "options": "longest-idle-agent\nround-robin\nagent-with-least-talk-time\nagent-with-fewest-calls\nring-all", "default": "longest-idle-agent"},
+  {"fieldname": "max_wait_seconds", "fieldtype": "Int", "label": "Maximum wait (seconds)", "default": "180"},
+  {"fieldname": "music_on_hold", "fieldtype": "Data", "label": "Music on hold", "default": "local_stream://moh"},
+  {"fieldname": "backup_queue", "fieldtype": "Link", "label": "Backup queue", "options": "FS Queue"},
+  {"fieldname": "agents", "fieldtype": "Table", "label": "Agents", "options": "FS Queue Agent"},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "FS Switch",
+ "name": "FS Queue",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "display_name",
+ "track_changes": 1
+}

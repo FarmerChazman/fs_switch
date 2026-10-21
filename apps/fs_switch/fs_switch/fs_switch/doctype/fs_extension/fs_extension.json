@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "autoname": "field:extension",
+ "creation": "2026-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "extension",
+  "display_name",
+  "user",
+  "enabled",
+  "sip_password",
+  "context",
+  "caller_id_name",
+  "caller_id_number",
+  "outbound_caller_id",
+  "voicemail_enabled",
+  "agent_status",
+  "notes"
+ ],
+ "fields": [
+  {"fieldname": "extension", "fieldtype": "Data", "label": "Extension", "reqd": 1, "unique": 1, "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "display_name", "fieldtype": "Data", "label": "Display name", "in_list_view": 1},
+  {"fieldname": "user", "fieldtype": "Link", "label": "Frappe user", "options": "User", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},
+  {"fieldname": "sip_password", "fieldtype": "Password", "label": "SIP password", "reqd": 1},
+  {"fieldname": "context", "fieldtype": "Data", "label": "Context", "description": "Leave blank to use the default context."},
+  {"fieldname": "caller_id_name", "fieldtype": "Data", "label": "Caller ID name"},
+  {"fieldname": "caller_id_number", "fieldtype": "Data", "label": "Caller ID number"},
+  {"fieldname": "outbound_caller_id", "fieldtype": "Data", "label": "Outbound caller ID"},
+  {"fieldname": "voicemail_enabled", "fieldtype": "Check", "label": "Voicemail enabled", "default": "1"},
+  {"fieldname": "agent_status", "fieldtype": "Select", "label": "Agent status", "options": "Logged Out\nAvailable\nOn Break\nIn Call\nWrap-Up", "default": "Logged Out", "in_list_view": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "FS Switch",
+ "name": "FS Extension",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}
+ ],
+ "search_fields": "display_name,user",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "display_name",
+ "track_changes": 1
+}

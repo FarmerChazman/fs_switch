@@ -1,0 +1,15 @@
+[build-system]
+requires = ["flit_core>=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "fs_switch"
+version = "0.1.0"
+description = "FreeSWITCH control plane for Frappe"
+requires-python = ">=3.10"
+license = { text = "AGPL-3.0-only" }
+authors = [{ name = "FS Switch contributors" }]
+dependencies = []
+
+[tool.flit.module]
+name = "fs_switch"

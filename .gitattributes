@@ -1,0 +1,7 @@
+# Keep shell scripts and patches LF-only: they run inside Linux containers.
+*.sh text eol=lf
+*.patch text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
