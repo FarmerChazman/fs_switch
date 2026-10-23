@@ -18,9 +18,9 @@ const NODE_ICONS = {
 }
 
 const CATEGORY_COLORS = {
-  'Call control': '#0f766e',
-  Routing: '#2563eb',
-  Media: '#7c3aed',
+  'Call control': '#6b7280',
+  Routing: '#2490ef',
+  Media: '#8b5cf6',
   Variables: '#d97706',
 }
 

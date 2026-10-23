@@ -200,13 +200,28 @@ one Tenant cannot act on another Tenant's rows. Agents do not see the Live tree.
 
 ## Visual language
 
-The console uses a neutral palette so it can be embedded in any Frappe site:
+The console follows the neutral language shared by Frappe CRM and Helpdesk. It
+is quiet by default: light surfaces, thin borders, compact type and a dark ink
+primary action. Colour is reserved for state.
 
-- primary: `#0f766e` (teal)
-- surface: `#f8fafc`
-- ink: `#0f172a`
-- sidebar: `#0f172a`
-- accent: `#f59e0b` (amber) for warnings
+- page canvas: `#f7f7f8`
+- surfaces: `#ffffff`
+- sidebar: `#fafafa`
+- border: `#e5e5e5`
+- ink: `#1f1f1f`
+- muted text: `#6b6b6b`
+- links and focus: `#2490ef`
+- success: `#2f9e44`
+- warning: `#b7791f`
+- danger: `#d33b3b`
+- radius: 8px for cards, 6px for controls
+- tables: small-caps headers, 1px row rules, no zebra striping
+- tags: compact pills with a tinted background
+
+No gradients, dark chrome or decorative shadows. The PrimeVue preset in
+`frontend/src/main.js` maps its primary palette to the dark ink action colour;
+`frontend/src/styles.css` owns the console tokens and table, form and canvas
+refinements.
 
 The mark is a simple switch/route glyph, not a client logo. See
 `apps/fs_switch/fs_switch/public/images/fs-switch-mark.svg`.
