@@ -51,10 +51,19 @@ def before_install():
 	ensure_tenant_roles()
 
 
+def configure_console_home():
+	"""Make the standalone console the site's default landing page."""
+	settings = frappe.get_single("Website Settings")
+	if not settings.home_page:
+		settings.home_page = "fs-switch"
+		settings.save(ignore_permissions=True)
+
+
 def after_install():
 	configure_from_env()
 	ensure_default_tenant()
 	ensure_tenant_roles()
+	configure_console_home()
 	seed_demo_dialplan()
 	frappe.db.commit()
 

@@ -3,6 +3,15 @@
 This guide is for the person running FS Switch after installation. It assumes
 the console and XML-curl endpoint are already reachable from FreeSWITCH.
 
+## Login and landing page
+
+The app sets the site **Website Settings > home_page** to `fs-switch` when it is
+blank, and gives `FS Switch Admin`, `FS Switch Supervisor` and `FS Switch Agent`
+a role home page of `/fs-switch`. A normal login therefore lands in the console,
+not the blank Desk Framework page. System Managers can still open **Open Desk**
+from the console; their landing page follows the site home page unless they have
+an explicit role home page.
+
 ## Health checks
 
 | Check | What to do |

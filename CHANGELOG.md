@@ -75,3 +75,6 @@
   `www/fs-switch.html`; the console page no longer returns HTTP 500.
 - Agent bootstrap counts now include the Agent's own extension only, instead of
   showing zero for every count.
+- Login lands on `/fs-switch`: the site home page is set to the console when
+  blank and FS Switch roles carry a `/fs-switch` home page. Desk remains
+  available through **Open Desk**.

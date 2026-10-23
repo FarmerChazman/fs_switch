@@ -252,7 +252,7 @@ def tenant_roles_for(user=None) -> dict[str, str]:
 
 
 def ensure_tenant_roles():
-	"""Create the app roles on install or migrate."""
+	"""Create the app roles on install or migrate and point them at the console."""
 	frappe = _frappe()
 	for role in FS_ROLES:
 		if not frappe.db.exists("Role", role):
@@ -262,8 +262,14 @@ def ensure_tenant_roles():
 					"role_name": role,
 					"desk_access": 1,
 					"is_custom": 1,
+					"home_page": "/fs-switch",
 				}
 			).insert(ignore_permissions=True)
+		else:
+			role_doc = frappe.get_doc("Role", role)
+			if role_doc.home_page != "/fs-switch":
+				role_doc.home_page = "/fs-switch"
+				role_doc.save(ignore_permissions=True)
 	return FS_ROLES
 
 
@@ -388,4 +394,12 @@ def after_migrate():
 	ensure_default_tenant()
 	ensure_tenant_roles()
 	sync_all_user_roles()
+	try:
+		website = _frappe().get_single("Website Settings")
+		if not website.home_page:
+			website.home_page = "fs-switch"
+			website.save(ignore_permissions=True)
+	except Exception:
+		# A site may not have Website Settings during a partial bootstrap.
+		pass
 	invalidate_all()

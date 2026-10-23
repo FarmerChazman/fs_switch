@@ -248,6 +248,8 @@ A local Docker acceptance run on 2026-10-23 passed:
 - ESL live data and agent status changes.
 - Realtime recipient separation by Tenant.
 - Authenticated `/fs-switch` HTML and built `app.js` served with HTTP 200.
+- Login from `/login` lands on `/fs-switch`; the site home page and FS Switch
+  roles point at the console.
 - Browser QA: Admin Overview, Tenant switch, DIDs, Tenants panel, Dialplans
   list, and Live Agents.
 - Browser QA: Agent-only navigation, My extension, password reveal and

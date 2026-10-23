@@ -102,7 +102,8 @@ docker compose up -d --build
 ```
 
 Then open <http://fs-switch.localhost:8000/fs-switch> and log in as
-`Administrator` with the password from `.env`.
+`Administrator` with the password from `.env`. A normal login at `/login` also
+lands on the console; **Open Desk** remains available from the sidebar.
 
 The first Frappe start creates the site, installs the app, builds the console
 and writes the FreeSWITCH connection settings. FreeSWITCH waits for Frappe to be

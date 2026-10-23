@@ -176,6 +176,10 @@ The console page initially returned 500 because Frappe expects the controller
 for `fs-switch.html` at `www/fs_switch.py`, not `www/fs-switch.py`. Renaming the
 controller fixed the page.
 
+Login from `/login` now lands on `/fs-switch` instead of the blank Desk
+Framework page. The site home page and the three FS Switch roles point at the
+console; Desk remains available through **Open Desk**.
+
 Browser QA with the local Chromium session also passed:
 
 - Admin Overview showed **Live push**, **FreeSWITCH connected**, Tenant selector
