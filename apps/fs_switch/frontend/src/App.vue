@@ -26,6 +26,11 @@ const toast = useToast()
 const bootstrap = ref(null)
 const live = ref(null)
 const loading = ref(true)
+const treePt = {
+  nodeToggleButton: (options) => ({
+    'aria-label': `Toggle ${options?.context?.node?.label || 'children'}`,
+  }),
+}
 const switchingTenant = ref(false)
 const selected = ref('overview')
 const selectedKeys = ref({ overview: true })
@@ -359,6 +364,7 @@ onUnmounted(() => {
         :value="tree"
         selectionMode="single"
         class="fs-tree"
+        :pt="treePt"
         @node-select="onNodeSelect"
       />
 

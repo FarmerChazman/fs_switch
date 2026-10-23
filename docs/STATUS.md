@@ -98,6 +98,11 @@ deployment.
 - Shared-secret XML-curl endpoint.
 - SIP and ESL passwords remain password fields.
 - Published XML is server-managed and read-only in the console.
+- Frappe-style neutral theme across the shell, tables, forms and dialogs.
+- Deep interaction QA passed for the semantic canvas, property drawer, route
+  simulator, publish/rollback, version history, diff drawer and raw editor.
+- Responsive 375/768 drawer layouts, keyboard focus return, named icon actions
+  and axe critical/serious checks are clean for the tested pages.
 
 ## Partial
 
@@ -270,9 +275,16 @@ Still pending:
   persistence.
 - A real multi-Tenant queue call and SIP/queue event fan-out.
 - Live Tenant isolation with real SIP channels and agents.
-- Deep interaction QA of the semantic canvas, property drawer, route simulator,
-  publish/rollback drawer and diff drawer. The lists and role-aware pages were
-  visually checked; the canvas was not.
+
+### Deep interaction QA result
+
+QA on 2026-10-23 found and fixed: simulator results being cleared by the
+validation watcher, version drawers overflowing at 375px, focus not returning
+after drawer close, unnamed icon/tree/drawer controls and low-contrast text. The
+semantic canvas, property drawer, simulator, publish/rollback, version history,
+diff drawer and raw editor now pass. Axe reports no critical or serious
+violations on the tested list/editor/drawer states; empty table headers remain
+a minor warning.
 
 ## Recommended next order
 

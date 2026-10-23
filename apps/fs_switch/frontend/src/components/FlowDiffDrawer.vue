@@ -6,6 +6,7 @@ import Drawer from 'primevue/drawer'
 import Tag from 'primevue/tag'
 
 const visible = defineModel('visible', { type: Boolean, default: false })
+const emit = defineEmits(['hide'])
 const props = defineProps({
   diff: { type: Object, default: null },
   loading: Boolean,
@@ -60,7 +61,9 @@ function changeSummary(item) {
     v-model:visible="visible"
     header="Draft vs Published"
     position="right"
-    :style="{ width: '760px' }"
+    :style="{ width: 'min(760px, 100vw)' }"
+    :pt="{ root: { 'aria-label': 'Draft vs Published' }, content: { tabindex: '0' } }"
+    @hide="emit('hide')"
   >
     <div v-if="loading" class="fs-empty">Comparing the Draft with the Published version...</div>
     <div v-else-if="diff" class="fs-stack">

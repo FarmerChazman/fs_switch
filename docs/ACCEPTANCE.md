@@ -193,6 +193,31 @@ Browser QA with the local Chromium session also passed:
   the extension, context, SIP domain, password reveal and status control.
 - Agent, Supervisor and Admin role-aware navigation matched the intended model.
 
+Deep interaction QA on a seeded semantic Flow also passed:
+
+- The canvas rendered the entry badge, four steps, digit/timeout ports and all
+  four edges.
+- The property drawer edited a menu prompt and added a digit option; the new
+  port appeared and validation blocked Save until it was connected.
+- The route simulator returned the full Answer → Menu → Play → Hangup path,
+  highlighted the steps, showed variables, survived the validation pass and
+  cleared after a genuine graph edit.
+- Save, publish, double-click publish, XML preview, Draft vs Published, version
+  history and rollback behaved correctly; XML stayed read-only.
+- Long/XSS-like prompt text rendered as text and created no element or alert.
+- Version and diff drawers fit 375px and 768px viewports without document
+  overflow.
+- Escape returned keyboard focus to the version/diff trigger.
+- Axe reported zero critical or serious violations on the dialplan list,
+  semantic editor, property drawer, version drawer and diff drawer. Empty table
+  headers remain a minor warning.
+- A synthetic palette-to-canvas drag could not be automated reliably; a real
+  handle drag from a dynamic menu port to another node did connect, and the
+  validation state cleared.
+
+Supervisor users have no Dialplans entry in the current role model, so the
+read-only semantic editor was not part of the Supervisor pass.
+
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The
 handler-level cache and secret hash are still useful, but they are not a full

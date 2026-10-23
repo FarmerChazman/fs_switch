@@ -31,6 +31,8 @@ const diffLoading = ref(false)
 const diff = ref(null)
 const publishing = ref(false)
 const rollingBack = ref(false)
+let versionsTrigger = null
+let diffTrigger = null
 
 async function load() {
   loading.value = true
@@ -114,7 +116,8 @@ function isCurrentVersion(version) {
   return Number(version) === Number(versionsDoc.value?.published_version || 0)
 }
 
-async function openDiff(row) {
+async function openDiff(row, event) {
+  diffTrigger = event?.currentTarget || document.activeElement
   diff.value = null
   diffVisible.value = true
   diffLoading.value = true
@@ -125,6 +128,11 @@ async function openDiff(row) {
   } finally {
     diffLoading.value = false
   }
+}
+
+function restoreDiffFocus() {
+  diffTrigger?.focus?.()
+  diffTrigger = null
 }
 
 async function publish(row) {
@@ -149,7 +157,8 @@ function notifyPublish(result, message) {
   props.notify(message)
 }
 
-async function openVersions(row) {
+async function openVersions(row, event) {
+  versionsTrigger = event?.currentTarget || document.activeElement
   versionsDoc.value = row
   versions.value = []
   versionsVisible.value = true
@@ -163,6 +172,11 @@ async function openVersions(row) {
   } finally {
     versionsLoading.value = false
   }
+}
+
+function restoreVersionsFocus() {
+  versionsTrigger?.focus?.()
+  versionsTrigger = null
 }
 
 async function rollback(row) {
@@ -273,6 +287,7 @@ watch(() => props.tenant, load)
                 rounded
                 size="small"
                 title="Edit Flow"
+                aria-label="Edit Flow"
                 @click="edit(data)"
               />
               <Button
@@ -283,6 +298,7 @@ watch(() => props.tenant, load)
                 size="small"
                 severity="success"
                 title="Publish saved Draft"
+                aria-label="Publish saved Draft"
                 :disabled="publishing || data.publish_status === 'Published'"
                 @click="publish(data)"
               />
@@ -294,8 +310,9 @@ watch(() => props.tenant, load)
                 size="small"
                 severity="secondary"
                 title="Published versions"
+                aria-label="Published versions"
                 :disabled="!data.published_version"
-                @click="openVersions(data)"
+                @click="openVersions(data, $event)"
               />
               <Button
                 icon="pi pi-arrows-h"
@@ -304,7 +321,8 @@ watch(() => props.tenant, load)
                 size="small"
                 severity="info"
                 title="Draft vs Published"
-                @click="openDiff(data)"
+                aria-label="Draft vs Published"
+                @click="openDiff(data, $event)"
               />
             </div>
           </template>
@@ -316,7 +334,9 @@ watch(() => props.tenant, load)
       v-model:visible="versionsVisible"
       header="Published versions"
       position="right"
-      :style="{ width: '560px' }"
+      :style="{ width: 'min(560px, 100vw)' }"
+      :pt="{ root: { 'aria-label': 'Published versions' }, content: { tabindex: '0' } }"
+      @hide="restoreVersionsFocus"
     >
       <div v-if="versionsLoading" class="fs-empty">Loading versions...</div>
       <DataTable v-else :value="versions" dataKey="version" size="small">
@@ -352,6 +372,11 @@ watch(() => props.tenant, load)
       </DataTable>
     </Drawer>
 
-    <FlowDiffDrawer v-model:visible="diffVisible" :diff="diff" :loading="diffLoading" />
+    <FlowDiffDrawer
+      v-model:visible="diffVisible"
+      :diff="diff"
+      :loading="diffLoading"
+      @hide="restoreDiffFocus"
+    />
   </div>
 </template>

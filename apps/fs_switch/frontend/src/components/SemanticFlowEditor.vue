@@ -17,7 +17,7 @@ import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import { Controls } from '@vue-flow/controls'
+import { ControlButton, Controls } from '@vue-flow/controls'
 
 import { api, parseGraph } from '../api'
 import {
@@ -43,7 +43,7 @@ const props = defineProps({
 const emit = defineEmits(['saved', 'close'])
 
 const nodeTypes = markRaw({ 'semantic-node': SemanticNode })
-const { fitView, screenToFlowCoordinate, updateNodeInternals } = useVueFlow()
+const { fitView, screenToFlowCoordinate, updateNodeInternals, zoomIn, zoomOut } = useVueFlow()
 
 const catalog = ref([])
 const form = ref({})
@@ -71,6 +71,7 @@ const simTime = ref('')
 const simDigits = ref('')
 let validationTimer = null
 let validationRequest = 0
+let applyingSimulation = false
 
 const isNew = computed(() => !form.value.name)
 const specs = computed(() => catalogMap(catalog.value))
@@ -262,6 +263,7 @@ function removeNode(node) {
 
 function removeEdge(edge) {
   if (!props.isAdmin) return
+  clearSimulation()
   edges.value = edges.value.filter((item) => item.id !== edge.id)
   scheduleValidate()
 }
@@ -293,6 +295,7 @@ function onConnect(connection) {
   edges.value = edges.value.filter(
     (edge) => !(edge.source === connection.source && (edge.sourceHandle || 'next') === handle),
   )
+  clearSimulation()
   edges.value.push({
     id: `e-${connection.source}-${handle}-${Date.now()}`,
     source: connection.source,
@@ -377,8 +380,11 @@ async function runSimulation() {
       destinationNumber: form.value.destination_number || '',
     })
     simulation.value = result
+    applyingSimulation = true
     const ids = new Set((result.path || []).map((step) => step.node))
     for (const node of nodes.value) node.data.isSimulated = ids.has(node.id)
+    await nextTick()
+    applyingSimulation = false
     if (!result.valid) {
       props.notify('The simulation could not run. See the errors below.', 'error')
     } else if (!result.matched) {
@@ -393,7 +399,8 @@ async function runSimulation() {
 }
 
 function scheduleValidate() {
-  clearSimulation()
+  // Simulation highlights also mutate nodes. Clear the result only from the
+  // graph-edit watchers below, never from a validation pass.
   window.clearTimeout(validationTimer)
   validationTimer = null
   validationRequest += 1
@@ -541,14 +548,16 @@ watch(
     config: node.data.config,
   })),
   () => {
+    if (applyingSimulation) return
+    clearSimulation()
     scheduleValidate()
     nextTick(refreshHandles)
   },
   { deep: true },
 )
-watch(edges, scheduleValidate, { deep: true })
 watch(entry, () => {
   markEntry()
+  clearSimulation()
   scheduleValidate()
 })
 watch(activeTab, (tab) => {
@@ -667,7 +676,11 @@ onBeforeUnmount(() => {
       <TabPanels>
         <TabPanel value="flow">
           <div class="fs-semantic-layout">
-            <aside class="fs-semantic-palette">
+            <aside
+              class="fs-semantic-palette"
+              tabindex="0"
+              aria-label="Semantic node palette"
+            >
               <div class="fs-palette-title">Semantic palette</div>
               <div class="fs-palette-hint">Drag a step onto the canvas, or click to add it.</div>
               <div v-if="!paletteGroups.length" class="fs-empty">Palette unavailable.</div>
@@ -731,7 +744,35 @@ onBeforeUnmount(() => {
                   @nodes-initialized="fitView({ padding: 0.2 })"
                 >
                   <Background pattern-color="#cbd5e1" :gap="18" />
-                  <Controls />
+                  <Controls :show-interactive="false">
+                    <template #control-zoom-in>
+                      <ControlButton
+                        class="vue-flow__controls-zoomin"
+                        aria-label="Zoom in"
+                        @click="zoomIn"
+                      >
+                        <i class="pi pi-plus" />
+                      </ControlButton>
+                    </template>
+                    <template #control-zoom-out>
+                      <ControlButton
+                        class="vue-flow__controls-zoomout"
+                        aria-label="Zoom out"
+                        @click="zoomOut"
+                      >
+                        <i class="pi pi-minus" />
+                      </ControlButton>
+                    </template>
+                    <template #control-fit-view>
+                      <ControlButton
+                        class="vue-flow__controls-fitview"
+                        aria-label="Fit flow to view"
+                        @click="fitView({ padding: 0.2 })"
+                      >
+                        <i class="pi pi-window-maximize" />
+                      </ControlButton>
+                    </template>
+                  </Controls>
                 </VueFlow>
               </div>
 
@@ -770,7 +811,11 @@ onBeforeUnmount(() => {
                 </template>
                 <Column header="Label">
                   <template #body="{ data }">
-                    <InputText v-model="data.data.label" size="small" />
+                    <InputText
+                      v-model="data.data.label"
+                      :aria-label="`Step label for ${data.id}`"
+                      size="small"
+                    />
                   </template>
                 </Column>
                 <Column header="Type" style="width: 170px">
@@ -815,6 +860,7 @@ onBeforeUnmount(() => {
                       rounded
                       severity="danger"
                       size="small"
+                      :aria-label="`Delete step ${data.data.label || data.id}`"
                       @click="removeNode(data)"
                     />
                   </template>
@@ -847,6 +893,7 @@ onBeforeUnmount(() => {
                       rounded
                       severity="danger"
                       size="small"
+                      :aria-label="`Delete connection ${data.id}`"
                       @click="removeEdge(data)"
                     />
                   </template>
@@ -1073,12 +1120,13 @@ onBeforeUnmount(() => {
       v-model:visible="drawer"
       header="Configure step"
       position="right"
-      :style="{ width: '430px' }"
+      :style="{ width: 'min(430px, 100vw)' }"
+      :pt="{ root: { 'aria-label': 'Configure step' }, content: { tabindex: '0' } }"
     >
       <div v-if="selectedNode" class="fs-stack" style="gap: 16px">
         <div class="fs-field">
           <label>Display label</label>
-          <InputText v-model="selectedNode.data.label" />
+          <InputText v-model="selectedNode.data.label" aria-label="Display label" />
         </div>
         <div class="fs-field">
           <label>Step type</label>
@@ -1095,6 +1143,7 @@ onBeforeUnmount(() => {
             <label>Prompt</label>
             <InputText
               v-model="selectedNode.data.config.prompt"
+              aria-label="Prompt"
               placeholder="ivr/welcome.wav"
             />
             <small>A sound path or phrase understood by FreeSWITCH playback.</small>
@@ -1106,22 +1155,31 @@ onBeforeUnmount(() => {
             <label>Prompt</label>
             <InputText
               v-model="selectedNode.data.config.prompt"
+              aria-label="Prompt"
               placeholder="ivr/main_menu.wav"
             />
           </div>
           <div class="fs-field">
             <label>Invalid-entry prompt</label>
-            <InputText v-model="selectedNode.data.config.invalid_prompt" />
+            <InputText
+              v-model="selectedNode.data.config.invalid_prompt"
+              aria-label="Invalid-entry prompt"
+            />
           </div>
           <div class="fs-field">
             <label>Variable</label>
-            <InputText v-model="selectedNode.data.config.variable" placeholder="menu_digit" />
+            <InputText
+              v-model="selectedNode.data.config.variable"
+              aria-label="Variable"
+              placeholder="menu_digit"
+            />
           </div>
           <div class="fs-form-grid">
             <div class="fs-field">
               <label>Minimum digits</label>
               <InputNumber
                 v-model="selectedNode.data.config.min_digits"
+                aria-label="Minimum digits"
                 :min="1"
                 :max="1"
               />
@@ -1130,6 +1188,7 @@ onBeforeUnmount(() => {
               <label>Maximum digits</label>
               <InputNumber
                 v-model="selectedNode.data.config.max_digits"
+                aria-label="Maximum digits"
                 :min="1"
                 :max="1"
               />
@@ -1137,16 +1196,27 @@ onBeforeUnmount(() => {
             </div>
             <div class="fs-field">
               <label>Tries</label>
-              <InputNumber v-model="selectedNode.data.config.tries" :min="1" />
+              <InputNumber
+                v-model="selectedNode.data.config.tries"
+                aria-label="Tries"
+                :min="1"
+              />
             </div>
             <div class="fs-field">
               <label>Timeout (ms)</label>
-              <InputNumber v-model="selectedNode.data.config.timeout_ms" :min="1" />
+              <InputNumber
+                v-model="selectedNode.data.config.timeout_ms"
+                aria-label="Timeout milliseconds"
+                :min="1"
+              />
             </div>
           </div>
           <div class="fs-field">
             <label>Terminators</label>
-            <InputText v-model="selectedNode.data.config.terminators" />
+            <InputText
+              v-model="selectedNode.data.config.terminators"
+              aria-label="Terminators"
+            />
           </div>
           <div class="fs-field">
             <label>Options</label>
@@ -1158,17 +1228,23 @@ onBeforeUnmount(() => {
               >
                 <InputText
                   v-model="option.digit"
+                  :aria-label="`Option ${index + 1} digit`"
                   maxlength="1"
                   placeholder="1"
                   class="fs-option-digit"
                 />
-                <InputText v-model="option.label" placeholder="Sales" />
+                <InputText
+                  v-model="option.label"
+                  :aria-label="`Option ${index + 1} label`"
+                  placeholder="Sales"
+                />
                 <Button
                   icon="pi pi-trash"
                   text
                   rounded
                   severity="danger"
                   size="small"
+                  :aria-label="`Remove option ${index + 1}`"
                   @click="removeOption(index)"
                 />
               </div>
@@ -1190,6 +1266,7 @@ onBeforeUnmount(() => {
             <label>Field</label>
             <InputText
               v-model="selectedNode.data.config.field"
+              aria-label="Time field"
               placeholder="${strftime(%H%M)}"
             />
           </div>
@@ -1197,6 +1274,7 @@ onBeforeUnmount(() => {
             <label>Expression</label>
             <InputText
               v-model="selectedNode.data.config.expression"
+              aria-label="Time expression"
               placeholder="^(09|10|11|12|13|14|15|16|17)"
             />
             <small>A FreeSWITCH regular expression evaluated against the field.</small>
@@ -1208,6 +1286,7 @@ onBeforeUnmount(() => {
             <label>Endpoints</label>
             <Textarea
               v-model="endpointText"
+              aria-label="Ring group endpoints"
               rows="3"
               placeholder="1001, 1002, user/1003@${domain_name}"
             />
@@ -1215,7 +1294,11 @@ onBeforeUnmount(() => {
           </div>
           <div class="fs-field">
             <label>Timeout (seconds)</label>
-            <InputNumber v-model="selectedNode.data.config.timeout_seconds" :min="0" />
+            <InputNumber
+              v-model="selectedNode.data.config.timeout_seconds"
+              aria-label="Ring group timeout seconds"
+              :min="0"
+            />
             <small>Set to 0 to omit the global leg timeout.</small>
           </div>
         </template>
@@ -1223,71 +1306,123 @@ onBeforeUnmount(() => {
         <template v-else-if="selectedNode.data.nodeType === 'queue'">
           <div class="fs-field">
             <label>Queue</label>
-            <InputText v-model="selectedNode.data.config.queue" placeholder="support" />
+            <InputText
+              v-model="selectedNode.data.config.queue"
+              aria-label="Queue"
+              placeholder="support"
+            />
             <small>Use queue@context when the queue lives outside this dialplan's context.</small>
           </div>
           <div class="fs-field">
             <label>Context (optional)</label>
-            <InputText v-model="selectedNode.data.config.context" placeholder="default" />
+            <InputText
+              v-model="selectedNode.data.config.context"
+              aria-label="Context"
+              placeholder="default"
+            />
           </div>
         </template>
 
         <template v-else-if="selectedNode.data.nodeType === 'voicemail'">
           <div class="fs-field">
             <label>Mailbox</label>
-            <InputText v-model="selectedNode.data.config.mailbox" placeholder="1001" />
+            <InputText
+              v-model="selectedNode.data.config.mailbox"
+              aria-label="Mailbox"
+              placeholder="1001"
+            />
           </div>
           <div class="fs-field">
             <label>Profile</label>
-            <InputText v-model="selectedNode.data.config.profile" placeholder="default" />
+            <InputText
+              v-model="selectedNode.data.config.profile"
+              aria-label="Profile"
+              placeholder="default"
+            />
           </div>
           <div class="fs-field">
             <label>Domain</label>
-            <InputText v-model="selectedNode.data.config.domain" placeholder="${domain_name}" />
+            <InputText
+              v-model="selectedNode.data.config.domain"
+              aria-label="Domain"
+              placeholder="${domain_name}"
+            />
           </div>
         </template>
 
         <template v-else-if="selectedNode.data.nodeType === 'transfer'">
           <div class="fs-field">
             <label>Destination</label>
-            <InputText v-model="selectedNode.data.config.destination" placeholder="1001" />
+            <InputText
+              v-model="selectedNode.data.config.destination"
+              aria-label="Transfer destination"
+              placeholder="1001"
+            />
           </div>
           <div class="fs-field">
             <label>Dialplan</label>
-            <InputText v-model="selectedNode.data.config.dialplan" placeholder="XML" />
+            <InputText
+              v-model="selectedNode.data.config.dialplan"
+              aria-label="Transfer dialplan"
+              placeholder="XML"
+            />
           </div>
           <div class="fs-field">
             <label>Context (optional)</label>
-            <InputText v-model="selectedNode.data.config.context" placeholder="default" />
+            <InputText
+              v-model="selectedNode.data.config.context"
+              aria-label="Context"
+              placeholder="default"
+            />
           </div>
         </template>
 
         <template v-else-if="selectedNode.data.nodeType === 'conference'">
           <div class="fs-field">
             <label>Room</label>
-            <InputText v-model="selectedNode.data.config.room" placeholder="sales" />
+            <InputText
+              v-model="selectedNode.data.config.room"
+              aria-label="Conference room"
+              placeholder="sales"
+            />
           </div>
           <div class="fs-field">
             <label>Profile</label>
-            <InputText v-model="selectedNode.data.config.profile" placeholder="default" />
+            <InputText
+              v-model="selectedNode.data.config.profile"
+              aria-label="Profile"
+              placeholder="default"
+            />
           </div>
         </template>
 
         <template v-else-if="selectedNode.data.nodeType === 'set'">
           <div class="fs-field">
             <label>Variable</label>
-            <InputText v-model="selectedNode.data.config.variable" placeholder="route" />
+            <InputText
+              v-model="selectedNode.data.config.variable"
+              aria-label="Variable name"
+              placeholder="route"
+            />
           </div>
           <div class="fs-field">
             <label>Value</label>
-            <InputText v-model="selectedNode.data.config.value" placeholder="sales" />
+            <InputText
+              v-model="selectedNode.data.config.value"
+              aria-label="Variable value"
+              placeholder="sales"
+            />
           </div>
         </template>
 
         <template v-else-if="selectedNode.data.nodeType === 'sleep'">
           <div class="fs-field">
             <label>Milliseconds</label>
-            <InputNumber v-model="selectedNode.data.config.milliseconds" :min="1" />
+            <InputNumber
+              v-model="selectedNode.data.config.milliseconds"
+              aria-label="Sleep milliseconds"
+              :min="1"
+            />
           </div>
         </template>
 
@@ -1296,6 +1431,7 @@ onBeforeUnmount(() => {
             <label>Recording path</label>
             <InputText
               v-model="selectedNode.data.config.path"
+              aria-label="Recording path"
               placeholder="$${recordings_dir}/call.wav"
             />
           </div>
@@ -1304,7 +1440,11 @@ onBeforeUnmount(() => {
         <template v-else-if="selectedNode.data.nodeType === 'hangup'">
           <div class="fs-field">
             <label>Cause (optional)</label>
-            <InputText v-model="selectedNode.data.config.cause" placeholder="NORMAL_CLEARING" />
+            <InputText
+              v-model="selectedNode.data.config.cause"
+              aria-label="Hangup cause"
+              placeholder="NORMAL_CLEARING"
+            />
           </div>
         </template>
 
