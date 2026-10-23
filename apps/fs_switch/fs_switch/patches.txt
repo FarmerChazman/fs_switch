@@ -1,3 +1,4 @@
 fs_switch.patches.v0_1.create_default_tenant
 fs_switch.patches.v0_1.publish_existing_flows
 fs_switch.patches.v0_1.tenant_roles
+fs_switch.patches.v0_1.tenant_scoped_names

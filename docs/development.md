@@ -28,6 +28,8 @@ schema. The migration:
 - backfills `tenant` on existing Flows, extensions, queues and gateways,
 - backfills `published_tenant` on already-published Flows,
 - publishes every existing valid Flow once,
+- renames extensions, queues, gateways and Flows to Tenant-qualified document
+  names while preserving their natural key fields and links,
 - syncs projected roles from Tenant membership.
 
 Useful commands:

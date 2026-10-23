@@ -58,6 +58,8 @@ deployment.
 - Tenant fields on Flows, extensions, gateways, queues and DIDs.
 - One SIP domain and one default context per Tenant.
 - Tenant-level outbound caller ID and music-on-hold overrides.
+- Tenant-qualified document names for extensions, queues, gateways and Flows;
+  natural keys are unique within a Tenant instead of globally.
 - Directory resolution by domain; dialplan resolution by context.
 - Context wins when domain and context disagree.
 - Unknown labels fall back to the configured default Tenant.
@@ -114,13 +116,14 @@ Have:
 - Backup queues.
 - Live agent status changes.
 - Self-service Available / On Break / Logged Out status from **My extension**.
+- Supervisor wallboard with queue depth, wait, answer/abandon counters, agent
+  availability and active call paths.
 
 Missing:
 
-- Queue wallboard with hold time, wait time and abandoned-call metrics.
-- Real-time queue depth.
+- Hold-time history and per-agent daily metrics.
+- Push updates for queue metrics; the wallboard refreshes every 10 seconds.
 - Supervisor listen / whisper / barge.
-- Agent daily metrics.
 - Call-path highlighting on the flow canvas.
 - Queue events beyond agent status changes.
 
@@ -171,11 +174,11 @@ Have:
 - Tenant model, domains, contexts, membership roles, isolation and selector.
 - DID inventory.
 - Global callcenter document.
+- Per-Tenant uniqueness for extension numbers, queue names, gateway names and
+  Flow titles, backed by a name migration.
 
 Missing:
 
-- Per-Tenant uniqueness for extension numbers, queue names, gateway names and
-  Flow titles.
 - Broader tenant-scoped settings such as recording policy and voicemail
   defaults.
 - Tenant quotas and limits.
@@ -189,15 +192,17 @@ Have:
 - Event-driven live grids.
 - Socket.IO push with polling fallback.
 - Basic supervisor actions.
+- Supervisor wallboard with queue depth, configured wait, answer/abandon
+  counters, available/busy agents and active call paths.
+- Queue depth from active callcenter channels and wallboard summary in the live
+  snapshot.
 
 Missing:
 
 - Supervisor listen / whisper / barge.
-- Wallboard metrics.
-- Call-path highlighting.
-- Queue depth from events.
+- Longest-wait and hold-time collection for callers when FreeSWITCH does not
+  expose queue join variables on the channel snapshot.
 - Presence and screen pop.
-- Agent self-service controls.
 - Live conference controls.
 
 ### Endpoint layer
@@ -223,13 +228,10 @@ Missing:
 - LCR, rate decks and carrier templates.
 - SIP profiles, ACLs and TLS workflow.
 - Supervisor listen/whisper/barge.
-- Queue wallboard metrics.
-- Live call-path highlighting.
 - Embedded softphone.
 - Call logs / CDR.
 - Recording storage and retention.
 - Voicemail mailbox UI and voicemail-to-email.
-- Per-Tenant uniqueness.
 - Holiday calendar.
 - Webhook and AI nodes.
 - Media manager, TTS and ASR.
@@ -261,6 +263,13 @@ A local Docker acceptance run on 2026-10-23 passed:
   self-service status change.
 - Browser QA: Supervisor-only navigation, live Agent status change and
   Tenant-scoped lists.
+- Tenant-qualified migration for extensions, queues, gateways and Flow titles;
+  duplicate natural keys are rejected inside one Tenant and allowed across
+  Tenants.
+- Directory and `callcenter.conf` still use natural extension and queue names
+  after the document-name migration.
+- Wallboard shows queue depth, configured wait, answer/abandon counters,
+  available/busy agents and active call paths from the live snapshot.
 
 Observed limitation:
 
@@ -291,11 +300,11 @@ a minor warning.
 1. **Close residual live verification** - browser QA, a real FreeSWITCH call
    lab and real ESL event fan-out. The checklist is in
    [`ACCEPTANCE.md`](ACCEPTANCE.md).
-2. **Finish the Tenant layer** — broader Tenant settings and the naming
-   migration needed for per-Tenant uniqueness.
-3. **Supervisor wallboard** — queue depth, hold metrics, call-path highlighting,
-   listen/whisper/barge and agent self-service.
-4. **Embedded WebRTC softphone** — JsSIP/SIP.js, WSS, STUN/TURN, presence,
+2. **Finish the Tenant layer** - broader Tenant settings, quotas and
+   provisioning.
+3. **Supervisor depth** - listen/whisper/barge, richer hold-time history and
+   agent self-service controls on top of the wallboard.
+4. **Embedded WebRTC softphone** - JsSIP/SIP.js, WSS, STUN/TURN, presence,
    screen pop and call controls.
 5. **Media and logic depth** — media manager, holiday calendar, collect digits,
    webhook, TTS/ASR and AI nodes.

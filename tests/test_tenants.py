@@ -13,6 +13,7 @@ from fs_switch.tenants import (  # noqa: E402
     resolve_tenant_from_map,
     tenant_map_from_rows,
     tenant_or_default,
+    tenant_scoped_name,
 )
 
 
@@ -42,6 +43,23 @@ class TenantTest(unittest.TestCase):
     def test_existing_document_without_a_tenant_uses_the_default(self):
         doc = FakeDoc("acme", before=SimpleNamespace(tenant=""))
         self.assertEqual(fixed_tenant(doc), DEFAULT_TENANT)
+
+
+class TenantScopedNameTest(unittest.TestCase):
+    def test_natural_key_is_namespaced_by_tenant(self):
+        self.assertEqual(tenant_scoped_name(" Accept-A ", " 7101 "), "accept-a::7101")
+        self.assertEqual(tenant_scoped_name("", "1001"), "default::1001")
+        self.assertEqual(tenant_scoped_name("acme", "Sales"), "acme::Sales")
+
+    def test_blank_key_still_produces_a_stable_name(self):
+        self.assertEqual(tenant_scoped_name("acme", ""), "acme::untitled")
+
+    def test_long_keys_are_shortened_with_a_hash_suffix(self):
+        name = tenant_scoped_name("acme", "x" * 300)
+        self.assertLessEqual(len(name), 140)
+        self.assertTrue(name.startswith("acme::"))
+        self.assertIn("#", name)
+        self.assertEqual(name, tenant_scoped_name("acme", "x" * 300))
 
 
 class TenantMappingTest(unittest.TestCase):

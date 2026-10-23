@@ -56,6 +56,10 @@ _Avoid_: company, org, account
 **Domain** / **Context**:
 FreeSWITCH routing labels resolved to a **Tenant**. Routing labels, not a security boundary.
 
+**Tenant-qualified name**:
+The immutable document name for a Tenant's extension, queue, gateway or Flow:
+`accept-a::7101`. Its natural key (`7101`) stays unique inside that Tenant.
+
 **DID**:
 An inbound number assigned to a **Tenant**. Appears as a starting node on the canvas.
 

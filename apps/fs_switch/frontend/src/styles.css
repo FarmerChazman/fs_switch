@@ -193,6 +193,10 @@ a:hover {
   align-items: center;
 }
 
+.fs-topbar-actions .p-select {
+  width: 250px;
+}
+
 .fs-connection {
   font-size: 10.5px;
 }
@@ -1090,6 +1094,7 @@ a:hover {
   padding: 2px 7px;
   font-size: 10px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .p-tag.p-tag-success {

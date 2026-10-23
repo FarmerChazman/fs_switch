@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import socket
+import time
 from urllib.parse import unquote
 
 
@@ -138,6 +139,14 @@ def _callcenter_rows(text: str) -> list[dict]:
 	return rows
 
 
+def _wait_seconds(row: dict) -> int:
+	joined = row.get("cc_queue_joined_epoch") or row.get("variable_cc_queue_joined_epoch")
+	try:
+		return max(0, int(time.time() - float(joined)))
+	except (TypeError, ValueError):
+		return 0
+
+
 def _channel_row(row: dict) -> dict:
 	return {
 		"uuid": row.get("uuid") or row.get("Unique-ID") or "",
@@ -146,6 +155,10 @@ def _channel_row(row: dict) -> dict:
 		"cid_num": row.get("cid_num") or "",
 		"dest": row.get("dest") or "",
 		"context": row.get("context") or "",
+		"application": row.get("application") or "",
+		"queue": row.get("cc_queue") or row.get("variable_cc_queue") or "",
+		"agent": row.get("cc_agent") or row.get("variable_cc_agent") or "",
+		"wait_seconds": _wait_seconds(row),
 		"callstate": row.get("callstate") or row.get("state") or "",
 		"created": row.get("created") or "",
 		"raw": row,
@@ -164,6 +177,27 @@ def _registration_row(row: dict) -> dict:
 	}
 
 
+def _enrich_queue_channel(esl, channel: dict) -> None:
+	"""Resolve queue wait metadata for a channel running the callcenter app."""
+	if channel.get("queue") or channel.get("application") != "callcenter":
+		return
+	uuid = channel.get("uuid")
+	if not uuid:
+		return
+	try:
+		queue = esl.api(f"uuid_getvar {uuid} cc_queue").strip()
+		if not queue or queue == "_undef_":
+			return
+		channel["queue"] = queue
+		joined = esl.api(f"uuid_getvar {uuid} cc_queue_joined_epoch").strip()
+		channel["wait_seconds"] = _wait_seconds({"cc_queue_joined_epoch": joined})
+		agent = esl.api(f"uuid_getvar {uuid} cc_agent").strip()
+		if agent and agent != "_undef_":
+			channel["agent"] = agent
+	except (OSError, ESLError):
+		return
+
+
 def live_data(settings=None) -> dict:
 	"""Read the current channels, registrations, agents and queues.
 
@@ -173,11 +207,20 @@ def live_data(settings=None) -> dict:
 	try:
 		with ESLConnection.from_settings(settings) as esl:
 			channels = [_channel_row(row) for row in _rows(esl.api("show channels as json"))]
+			for channel in channels:
+				_enrich_queue_channel(esl, channel)
 			registrations = [
 				_registration_row(row) for row in _rows(esl.api("show registrations as json"))
 			]
 			agents = _callcenter_rows(esl.api("callcenter_config agent list"))
 			queues = _callcenter_rows(esl.api("callcenter_config queue list"))
+			queue_counts = {}
+			for channel in channels:
+				queue_name = str(channel.get("queue") or "").strip()
+				if queue_name:
+					queue_counts[queue_name] = queue_counts.get(queue_name, 0) + 1
+			for queue in queues:
+				queue["waiting"] = queue_counts.get(str(queue.get("name") or ""), 0)
 		return {
 			"ok": True,
 			"channels": channels,

@@ -440,6 +440,38 @@ class TenantScopeTest(unittest.TestCase):
         self.assertIn('<tier agent="1001@default" queue="support@default"', xml)
         self.assertIn('<tier agent="2001@sales" queue="sales@sales"', xml)
 
+    def test_callcenter_resolves_tenant_scoped_extension_links(self):
+        self.fake.tenants = [
+            SimpleNamespace(name="default", default_context="default"),
+            SimpleNamespace(name="acme", default_context="sales"),
+        ]
+        self.fake.queues = {"default": [], "acme": ["acme::support"]}
+        self.fake.queue_docs = {
+            "acme::support": SimpleNamespace(
+                queue_name="support",
+                backup_queue="",
+                agents=[SimpleNamespace(extension="acme::1001", level=1, position=1)],
+                strategy="longest-idle-agent",
+                music_on_hold="",
+                max_wait_seconds=180,
+            )
+        }
+        self.fake.extensions = {
+            "acme": [
+                SimpleNamespace(
+                    name="acme::1001",
+                    extension="1001",
+                    agent_status="Available",
+                )
+            ]
+        }
+
+        xml = _build_callcenter(self.fake)
+
+        self.assertIn('<agent name="1001@sales"', xml)
+        self.assertIn('<tier agent="1001@sales" queue="support@sales"', xml)
+        self.assertNotIn("acme::1001@sales", xml)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "field:title",
+ "autoname": "hash",
  "creation": "2026-01-01 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -29,7 +29,7 @@
   "versions"
  ],
  "fields": [
-  {"fieldname": "title", "fieldtype": "Data", "label": "Title", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "title", "fieldtype": "Data", "label": "Title", "reqd": 1, "in_list_view": 1, "description": "Unique within the Tenant."},
   {"fieldname": "tenant", "fieldtype": "Link", "label": "Tenant", "options": "FS Tenant", "default": "default", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1, "description": "Tenant scope for this Flow. Fixed after creation."},
   {"fieldname": "publish_status", "fieldtype": "Select", "label": "Publish status", "options": "Draft\nPublished", "default": "Draft", "read_only": 1, "in_list_view": 1, "in_standard_filter": 1, "description": "Published means the draft matches the version FreeSWITCH is served."},
   {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},

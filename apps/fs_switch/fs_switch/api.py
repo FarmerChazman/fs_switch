@@ -32,6 +32,7 @@ from fs_switch.permissions import (
 )
 from fs_switch.publish import publish_flow, rollback_flow
 from fs_switch.simulator import simulate_flow
+from fs_switch.wallboard import summarize as summarize_wallboard
 from fs_switch.tenants import (
 	DEFAULT_TENANT,
 	accessible_tenants,
@@ -168,7 +169,10 @@ def _annotate_live(data):
 	if not isinstance(data, dict):
 		return data
 	for channel in data.get("channels") or []:
-		channel["tenant"] = resolve_tenant(context=channel.get("context"))
+		# A queue call belongs to the queue's Tenant even when the inbound leg
+		# arrived in another context.
+		context = _live_context(channel.get("queue") or "") or channel.get("context")
+		channel["tenant"] = resolve_tenant(context=context)
 	for agent in data.get("agents") or []:
 		context = _live_context(
 			agent.get("queue") or agent.get("agent") or agent.get("name") or ""
@@ -370,7 +374,9 @@ def save_settings(
 def get_live_data(tenant: str | None = None):
 	tenant = (tenant or "").strip() or None
 	require_supervisor(tenant)
-	return _filter_live(_annotate_live(read_live_data()), tenant)
+	data = _filter_live(_annotate_live(read_live_data()), tenant)
+	data["summary"] = summarize_wallboard(data)
+	return data
 
 
 @frappe.whitelist(methods=["POST"])

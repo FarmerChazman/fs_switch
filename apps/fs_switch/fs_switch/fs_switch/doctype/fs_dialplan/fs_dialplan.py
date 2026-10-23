@@ -5,7 +5,12 @@ from fs_switch.call_setup import invalidate_after_commit
 from fs_switch.dialplan import DialplanError, compile_extension
 from fs_switch.flow import FlowError
 from fs_switch.publish import published_status
-from fs_switch.tenants import fixed_tenant, normalize_context
+from fs_switch.tenants import (
+	assert_tenant_value_unique,
+	fixed_tenant,
+	normalize_context,
+	tenant_scoped_name,
+)
 
 SERVING_FIELDS = (
 	"title",
@@ -44,8 +49,19 @@ PUBLISHED_DEFAULTS = {
 
 
 class FSDialplan(Document):
+	def autoname(self):
+		self.name = tenant_scoped_name(fixed_tenant(self), self.title)
+
 	def validate(self):
 		self.tenant = fixed_tenant(self)
+		self.title = str(self.title or "").strip()
+		assert_tenant_value_unique(
+			"FS Dialplan",
+			self.tenant,
+			"title",
+			self.title,
+			None if self.is_new() else self.name,
+		)
 		tenant_context = normalize_context(
 			frappe.db.get_value("FS Tenant", self.tenant, "default_context")
 		)

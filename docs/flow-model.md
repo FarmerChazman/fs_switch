@@ -11,6 +11,10 @@ v1 contract that the canvas, property drawer and compiler must share.
 A semantic flow is stored in `FS Dialplan.graph` with
 `FS Dialplan.graph_format = semantic`.
 
+The document name is Tenant-qualified (`accept-a::Office IVR`) so the same Flow
+title can exist in two Tenants. The `title` field remains the human-readable
+label and is unique within its Tenant.
+
 ```json
 {
   "schema": 1,
@@ -380,8 +384,6 @@ Do not let the frontend invent XML. The registry and compiler are the contract.
 - No holiday calendar node; use `time` with FreeSWITCH condition fields.
 - No `menu` option labels in the XML; labels are UI metadata.
 - No media library or TTS/ASR nodes yet.
-- Extension numbers, queue names, gateway names and Flow titles are globally
-  unique. Per-Tenant uniqueness is not implemented yet.
 - No explicit catch-all-protection check yet.
 
 These are deliberate next steps, not hidden behavior.

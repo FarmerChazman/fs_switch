@@ -218,6 +218,20 @@ Deep interaction QA on a seeded semantic Flow also passed:
 Supervisor users have no Dialplans entry in the current role model, so the
 read-only semantic editor was not part of the Supervisor pass.
 
+Tenant uniqueness and wallboard checks also passed:
+
+- The migration renamed extensions, queues, gateways and Flows to
+  Tenant-qualified document names while preserving their natural key fields and
+  link references.
+- Creating `7101` twice in Acceptance A is rejected; creating `7101` in
+  Acceptance B succeeds.
+- The directory user remains `7101` in Acceptance A and the callcenter tier is
+  `7101@accept_a`, not the scoped document name.
+- The Wallboard shows queue depth, configured wait, answer/abandon counters,
+  available/busy agents and active call paths for the active Tenant.
+- The live snapshot derives queue depth from active callcenter channels and
+  returns a zeroed wallboard summary when FreeSWITCH has no calls.
+
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The
 handler-level cache and secret hash are still useful, but they are not a full

@@ -149,7 +149,6 @@ In scope:
 
 Out of scope for this milestone:
 
-- per-Tenant uniqueness for extensions, queues, gateways and Flow titles;
 - LCR;
 - media transcoding, TTS and ASR;
 - supervisor listen/whisper/barge;

@@ -32,6 +32,7 @@ Live
   Channels
   Registrations
   Agents
+  Wallboard
 Settings
 ```
 
@@ -51,7 +52,9 @@ realtime events for other Tenants are ignored.
 New extensions, gateways, queues and Flows default to the active Tenant. The
 Tenant field is disabled after creation. A Tenant's SIP domain and default
 context are unique among enabled Tenants, and a Flow's context must match its
-Tenant's default context.
+Tenant's default context. Document names are Tenant-qualified
+(`accept-a::7101`); the displayed extension, queue, gateway and Flow title stay
+natural and are unique inside the Tenant.
 
 ## Tenants panel
 
@@ -185,6 +188,9 @@ show the Draft/Published tag and a Publish action in the toolbar.
 - **Channels** — `show channels as json`, with hangup and transfer actions.
 - **Registrations** — `show registrations as json`.
 - **Agents** — `callcenter_config agent list`, with status changes.
+- **Wallboard** — queue depth from active `callcenter` channels, configured
+  waits, answered/abandoned counters, agent availability and active call paths.
+  It refreshes the live snapshot every 10 seconds while open.
 
 The console takes one snapshot, then connects to the site's Socket.IO namespace
 and applies `fs_switch_call`, `fs_switch_agent` and `fs_switch_registration`

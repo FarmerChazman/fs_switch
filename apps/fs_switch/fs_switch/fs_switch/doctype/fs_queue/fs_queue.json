@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "field:queue_name",
+ "autoname": "hash",
  "creation": "2026-01-01 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -17,7 +17,7 @@
   "description"
  ],
  "fields": [
-  {"fieldname": "queue_name", "fieldtype": "Data", "label": "Queue name", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "queue_name", "fieldtype": "Data", "label": "Queue name", "reqd": 1, "in_list_view": 1, "description": "Unique within the Tenant."},
   {"fieldname": "tenant", "fieldtype": "Link", "label": "Tenant", "options": "FS Tenant", "default": "default", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1, "description": "Tenant scope. Fixed after creation."},
   {"fieldname": "display_name", "fieldtype": "Data", "label": "Display name", "in_list_view": 1},
   {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},

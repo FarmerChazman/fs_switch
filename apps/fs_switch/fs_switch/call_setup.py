@@ -499,7 +499,8 @@ def _build_callcenter(frappe, tenant: str | None = None) -> str:
 			or settings.hold_music_file
 			or "local_stream://moh"
 		)
-		used_extensions = set()
+		queue_specs = []
+		used_links = set()
 		for row in frappe.get_all(
 			"FS Queue",
 			filters={"enabled": 1, "tenant": tenant_name},
@@ -507,20 +508,45 @@ def _build_callcenter(frappe, tenant: str | None = None) -> str:
 			order_by="queue_name asc",
 		):
 			queue = frappe.get_doc("FS Queue", row.name)
-			members = [
+			links = [
 				(agent.extension, agent.level or 1, agent.position or 0)
 				for agent in queue.agents or []
 			]
 			if queue.backup_queue:
 				backup = frappe.get_doc("FS Queue", queue.backup_queue)
 				if tenant_or_default(getattr(backup, "tenant", None)) == tenant_name:
-					members += [
+					links += [
 						(agent.extension, 2, agent.position or 0)
 						for agent in backup.agents or []
-						if agent.extension not in {member[0] for member in members}
+						if agent.extension not in {member[0] for member in links}
 					]
-			if not members:
+			if not links:
 				continue
+			queue_specs.append((queue, links))
+			used_links.update(link for link, _, _ in links if link)
+
+		extension_rows = (
+			frappe.get_all(
+				"FS Extension",
+				filters={
+					"enabled": 1,
+					"tenant": tenant_name,
+					"name": ["in", sorted(used_links)],
+				},
+				fields=["name", "extension", "agent_status"],
+				order_by="extension asc",
+			)
+			if used_links
+			else []
+		)
+		extension_by_name = {row.name: row.extension for row in extension_rows}
+
+		for queue, links in queue_specs:
+			members = []
+			for link, level, position in links:
+				extension = extension_by_name.get(link)
+				if extension and extension not in {member[0] for member in members}:
+					members.append((extension, level, position))
 			queue_name = f"{queue.queue_name}@{context}"
 			queues.append(
 				f"<queue name={_attr(queue_name)}>"
@@ -539,22 +565,7 @@ def _build_callcenter(frappe, tenant: str | None = None) -> str:
 					f'<tier agent={_attr(f"{extension}@{context}")} '
 					f'queue={_attr(queue_name)} level="{int(level)}" position="{int(position)}"/>'
 				)
-				used_extensions.add(extension)
 
-		extension_rows = (
-			frappe.get_all(
-				"FS Extension",
-				filters={
-					"enabled": 1,
-					"tenant": tenant_name,
-					"name": ["in", sorted(used_extensions)],
-				},
-				fields=["name", "extension", "agent_status"],
-				order_by="extension asc",
-			)
-			if used_extensions
-			else []
-		)
 		for row in extension_rows:
 			status = row.agent_status if row.agent_status in AGENT_STATUSES else "Logged Out"
 			agents.append(

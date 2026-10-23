@@ -1,10 +1,15 @@
 import sys
+import time
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "fs_switch"))
 
-from fs_switch.esl import _callcenter_rows  # noqa: E402
+from fs_switch.esl import (  # noqa: E402
+    _callcenter_rows,
+    _channel_row,
+    _enrich_queue_channel,
+)
 
 
 AGENT_LIST = """name|instance_id|uuid|type|contact|status|state|max_no_answer|wrap_up_time
@@ -40,6 +45,29 @@ class ESLParserTest(unittest.TestCase):
 
     def test_status_markers_are_ignored(self):
         self.assertEqual(_callcenter_rows("+OK\n-ERR no\n"), [])
+
+    def test_callcenter_channel_gets_queue_wait_and_agent(self):
+        class FakeESL:
+            def api(self, command):
+                if command.endswith("cc_queue"):
+                    return "support@acme\n"
+                if command.endswith("cc_queue_joined_epoch"):
+                    return f"{int(time.time()) - 12}\n"
+                if command.endswith("cc_agent"):
+                    return "7101@acme\n"
+                return ""
+
+        channel = _channel_row(
+            {
+                "uuid": "abc",
+                "cid_num": "+14155550100",
+                "application": "callcenter",
+            }
+        )
+        _enrich_queue_channel(FakeESL(), channel)
+        self.assertEqual(channel["queue"], "support@acme")
+        self.assertEqual(channel["agent"], "7101@acme")
+        self.assertGreaterEqual(channel["wait_seconds"], 11)
 
 
 if __name__ == "__main__":

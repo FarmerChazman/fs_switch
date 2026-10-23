@@ -317,11 +317,11 @@ tests/                      Python unit tests for the compiler and control plane
 ## Roadmap
 
 - Lab verification of the Socket.IO connection, Tenant roles and live actions
+- Supervisor listen/whisper/barge and richer hold-time history
 - Call logs, voicemail and missed-call records
 - Embedded softphone, presence and screen pop
 - Carrier templates, failover and LCR/rate decks
 - Media library, TTS/ASR and AI-agent nodes
-- Per-Tenant uniqueness for extensions, queues, gateways and Flow titles
 - Import/export of dialplan graphs
 
 ## Contributing

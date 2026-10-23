@@ -9,10 +9,6 @@ The local Docker acceptance run passed migration, role projection, tenant row
 isolation, DID creation, publishing, XML-curl cold/warm requests, Socket.IO
 authentication and delivery, ESL live data and agent status changes. Remaining:
 
-- Deep interaction QA of the semantic canvas, property drawer, route simulator,
-  publish/rollback drawer and diff drawer. Admin, Supervisor and Agent pages,
-  Tenant switching, DIDs, Tenants, Live Agents and My extension were visually
-  checked in a browser.
 - Lab-test generated semantic XML in FreeSWITCH: menu, timeout, loop, queue
   transfer and variable persistence across transfers.
 - Lab-test multi-Tenant `callcenter.conf` queues and agents with a real call.
@@ -27,8 +23,6 @@ authentication and delivery, ESL live data and agent status changes. Remaining:
 - Embedded softphone, presence and screen pop.
 - Carrier templates, failover and LCR/rate decks.
 - Media library, TTS/ASR and AI-agent nodes.
-- Per-Tenant uniqueness for extension numbers, queue names, gateway names and
-  Flow titles.
 - Broader Tenant settings for recording policy, voicemail defaults and quotas.
 - Import/export of dialplan graphs.
 
@@ -39,9 +33,6 @@ authentication and delivery, ESL live data and agent status changes. Remaining:
   lookup failures inside an executing request.
 - The route simulator does not evaluate native FreeSWITCH time fields (`wday`,
   `hour`, `minute-of-day`); use `${strftime(...)}` or a `set` variable.
-- Extension numbers, queue names, gateway names and Flow titles are globally
-  unique. A multi-Tenant deployment cannot reuse `1001` or `sales` across
-  Tenants yet.
 - Tenant roles are projected after commit. A user may need to reload the console
   after a membership change before the new role is visible.
 - Role projection is additive at the Frappe role level; row-level hooks are what

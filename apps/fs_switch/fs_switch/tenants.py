@@ -17,7 +17,10 @@ System Manager is the global administrator and needs no membership.
 
 from __future__ import annotations
 
+import hashlib
+
 DEFAULT_TENANT = "default"
+MAX_NAME_LENGTH = 140
 DEFAULT_TENANT_NAME = "Default"
 
 TENANT_ROLE_ADMIN = "Admin"
@@ -81,6 +84,42 @@ def normalize_context(value) -> str:
 
 def normalize_slug(value) -> str:
 	return str(value or "").strip().lower()
+
+
+def assert_tenant_value_unique(
+	doctype: str, tenant, field: str, value, name=None
+) -> None:
+	"""Reject a duplicate natural key inside one Tenant."""
+	value = str(value or "").strip()
+	if not value:
+		return
+	frappe = _frappe()
+	filters = {"tenant": tenant_or_default(tenant), field: value}
+	if name:
+		filters["name"] = ["!=", name]
+	if frappe.db.exists(doctype, filters):
+		frappe.throw(
+			f"{doctype} {value!r} already exists in Tenant {tenant_or_default(tenant)}."
+		)
+
+
+def tenant_scoped_name(tenant, value) -> str:
+	"""Return a stable, Tenant-qualified document name.
+
+	The natural key stays readable for support work, while the Tenant prefix
+	makes extension numbers, queue names, gateway names and Flow titles unique
+	inside one Tenant instead of globally.
+	"""
+	prefix = f"{tenant_or_default(tenant)}::"
+	key = str(value or "").strip() or "untitled"
+	available = MAX_NAME_LENGTH - len(prefix)
+	if available <= 0:
+		digest = hashlib.sha1(f"{prefix}{key}".encode("utf-8")).hexdigest()[:8]
+		return f"{prefix[: MAX_NAME_LENGTH - 9]}#{digest}"
+	if len(key) > available:
+		digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
+		key = f"{key[: max(0, available - 9)]}#{digest}"
+	return prefix + key
 
 
 def fixed_tenant(doc) -> str:

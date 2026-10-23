@@ -18,6 +18,7 @@ import DidsPanel from './components/DidsPanel.vue'
 import LiveChannels from './components/LiveChannels.vue'
 import LiveRegistrations from './components/LiveRegistrations.vue'
 import LiveAgents from './components/LiveAgents.vue'
+import Wallboard from './components/Wallboard.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import TenantsPanel from './components/TenantsPanel.vue'
 import MyExtensionPanel from './components/MyExtensionPanel.vue'
@@ -50,6 +51,7 @@ const panels = {
   channels: LiveChannels,
   registrations: LiveRegistrations,
   agents: LiveAgents,
+  wallboard: Wallboard,
   my_extension: MyExtensionPanel,
   tenants: TenantsPanel,
   settings: SettingsPanel,
@@ -113,6 +115,7 @@ const tree = computed(() => {
         { key: 'channels', label: 'Channels', icon: 'pi pi-arrows-h' },
         { key: 'registrations', label: 'Registrations', icon: 'pi pi-sign-in' },
         { key: 'agents', label: 'Agents', icon: 'pi pi-headphones' },
+        { key: 'wallboard', label: 'Wallboard', icon: 'pi pi-chart-bar' },
       ],
     })
   }
