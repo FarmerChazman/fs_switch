@@ -75,10 +75,11 @@ Tenant removes the projected `FS Switch *` role after commit.
 ## My extension
 
 **My extension** shows the signed-in user's own endpoint for the active Tenant:
-extension, display name, context, SIP domain and agent status. It also shows the
-WebRTC URL and the SIP password behind a **Reveal** button. The endpoint returns
-credentials only to the extension owner, and a user without an extension sees a
-clear empty state.
+extension, display name, context, SIP domain and agent status. The owner can set
+their own status to **Available**, **On Break** or **Logged Out**; the change is
+persisted and sent to ESL. It also shows the WebRTC URL and the SIP password
+behind a **Reveal** button. The endpoint returns credentials only to the
+extension owner, and a user without an extension sees a clear empty state.
 
 ## DIDs workspace
 

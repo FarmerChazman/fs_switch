@@ -108,13 +108,14 @@ Have:
 - Queues, agents, tiers, strategies, max wait, music on hold.
 - Backup queues.
 - Live agent status changes.
+- Self-service Available / On Break / Logged Out status from **My extension**.
 
 Missing:
 
 - Queue wallboard with hold time, wait time and abandoned-call metrics.
 - Real-time queue depth.
 - Supervisor listen / whisper / barge.
-- Agent self-service login/break console and daily metrics.
+- Agent daily metrics.
 - Call-path highlighting on the flow canvas.
 - Queue events beyond agent status changes.
 

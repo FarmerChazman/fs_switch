@@ -369,6 +369,42 @@ def get_live_data(tenant: str | None = None):
 
 
 @frappe.whitelist(methods=["POST"])
+def set_my_agent_status(status: str, tenant: str | None = None):
+	"""Let an extension owner change their own call-center status."""
+	_require_authenticated()
+	status = str(status or "").strip()
+	if status not in ("Logged Out", "Available", "On Break"):
+		frappe.throw("Unsupported agent status.", frappe.ValidationError)
+	tenant = (tenant or "").strip() or None
+	filters = {"user": frappe.session.user, "enabled": 1}
+	if tenant:
+		filters["tenant"] = tenant_or_default(tenant)
+	name = frappe.db.get_value("FS Extension", filters, "name")
+	if not name:
+		frappe.throw("No extension is assigned to your account for this Tenant.", frappe.PermissionError)
+	doc = frappe.get_doc("FS Extension", name)
+	if doc.user != frappe.session.user:
+		frappe.throw("You can only change your own agent status.", frappe.PermissionError)
+	doc.agent_status = status
+	doc.save(ignore_permissions=True)
+	context = (
+		doc.context
+		or frappe.db.get_value("FS Tenant", doc.tenant, "default_context")
+		or _settings().default_context
+		or "default"
+	)
+	try:
+		reply = execute_action(
+			"agent_status",
+			agent=f"{doc.extension}@{context}",
+			status=status,
+		)
+	except (OSError, ESLError, ValueError) as exc:
+		return {"ok": True, "esl_ok": False, "error": str(exc)}
+	return {"ok": True, "esl_ok": True, "reply": reply}
+
+
+@frappe.whitelist(methods=["POST"])
 def run_live_action(
 	action,
 	uuid=None,

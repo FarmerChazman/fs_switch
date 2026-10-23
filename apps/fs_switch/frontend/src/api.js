@@ -57,6 +57,11 @@ export const api = {
     const query = tenant ? `?tenant=${encodeURIComponent(tenant)}` : ''
     return request(`/api/method/fs_switch.api.get_softphone_config${query}`)
   },
+  setMyAgentStatus: (status, tenant = '') =>
+    request('/api/method/fs_switch.api.set_my_agent_status', {
+      method: 'POST',
+      body: JSON.stringify({ status, tenant }),
+    }),
   preview: (name) =>
     request(`/api/method/fs_switch.api.preview_dialplan?name=${encodeURIComponent(name)}`),
   flowCatalog: () => request('/api/method/fs_switch.api.get_flow_catalog'),

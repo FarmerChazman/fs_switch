@@ -48,7 +48,8 @@
 - Tenant-level outbound caller ID and music-on-hold overrides, used by the
   directory and callcenter document builders.
 - **My extension** page for the signed-in user's endpoint and browser-softphone
-  credentials, with the password hidden until revealed.
+  credentials, with the password hidden until revealed and self-service agent
+  status changes.
 - Socket.IO live updates: the ESL listener publishes call, agent and
   registration events with Tenant metadata to the owning Tenant's Admins and
   Supervisors plus System Managers; the console applies them directly and keeps

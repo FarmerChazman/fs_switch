@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 
 import { api } from '../api'
@@ -10,15 +11,19 @@ const props = defineProps({
   notify: { type: Function, required: true },
 })
 
+const statuses = ['Logged Out', 'Available', 'On Break']
 const config = ref(null)
 const loading = ref(false)
 const reveal = ref(false)
+const status = ref('Logged Out')
+const savingStatus = ref(false)
 
 async function load() {
   loading.value = true
   reveal.value = false
   try {
     config.value = await api.softphoneConfig(props.tenant)
+    status.value = config.value?.agent_status || 'Logged Out'
   } catch (error) {
     config.value = null
     props.notify(error.message, 'error')
@@ -31,6 +36,23 @@ function statusSeverity(status) {
   if (status === 'Available') return 'success'
   if (status === 'On Break') return 'warn'
   return 'secondary'
+}
+
+async function setStatus() {
+  savingStatus.value = true
+  try {
+    const result = await api.setMyAgentStatus(status.value, props.tenant)
+    config.value = { ...config.value, agent_status: status.value }
+    if (result?.esl_ok === false) {
+      props.notify(`Status saved; live update failed: ${result.error || 'ESL unavailable'}`, 'warn')
+    } else {
+      props.notify(`Agent status set to ${status.value}.`)
+    }
+  } catch (error) {
+    props.notify(error.message, 'error')
+  } finally {
+    savingStatus.value = false
+  }
 }
 
 onMounted(load)
@@ -89,6 +111,24 @@ watch(() => props.tenant, load)
           <div class="fs-field">
             <label>Agent status</label>
             <span>{{ config.agent_status }}</span>
+          </div>
+          <div class="fs-field fs-span-2">
+            <label for="my-agent-status">Change my status</label>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <Select
+                id="my-agent-status"
+                v-model="status"
+                :options="statuses"
+                style="flex: 1"
+              />
+              <Button
+                label="Apply"
+                icon="pi pi-check"
+                size="small"
+                :loading="savingStatus"
+                @click="setStatus"
+              />
+            </div>
           </div>
         </div>
       </div>
