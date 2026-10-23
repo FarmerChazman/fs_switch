@@ -52,10 +52,13 @@ routing label (domain or context). A cache hit performs no database query and
 no compilation. The `callcenter.conf` entry uses the global key `all/all`
 because FreeSWITCH requests that configuration once for the whole instance.
 
-The shared-secret hash is cached in Redis as well. With the cache warm,
-FreeSWITCH can authenticate and receive last-known-good XML while MariaDB is
-down. If neither Redis nor MariaDB can provide the hash, the handler fails
-closed.
+The shared-secret hash is cached in Redis as well, so an executing handler can
+authenticate during a database failure. A live test showed that a full MariaDB
+outage still fails at the Frappe HTTP layer before the handler runs: Frappe's
+request middleware needs the database. Last-known-good protects against
+compiler and lookup failures while Frappe itself is serving requests; it is not
+a full database-outage workaround. If neither Redis nor MariaDB can provide the
+hash, the handler fails closed.
 
 Each cached document also has a **Last-known-good** entry. Invalidation removes
 only the current entry; last-known-good survives so a database or compiler

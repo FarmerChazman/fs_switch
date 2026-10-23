@@ -109,18 +109,31 @@ def _rows(text: str) -> list[dict]:
 
 
 def _callcenter_rows(text: str) -> list[dict]:
-	"""Turn callcenter_config list output into rows without assuming a version."""
+	"""Turn callcenter_config list output into rows with named fields.
+
+	FreeSWITCH emits a header row followed by pipe-separated data. Older
+	versions can omit the header, so fall back to the historical first-three
+	columns in that case.
+	"""
 	rows = []
+	header = []
 	for line in (text or "").splitlines():
 		line = line.strip()
 		if not line or line.startswith("+OK") or line.startswith("-ERR"):
 			continue
 		parts = [part.strip() for part in line.split("|")]
+		if parts and parts[0].lower() == "name":
+			header = [part.lower().replace("-", "_") for part in parts]
+			continue
 		row = {"name": parts[0] if parts else line, "raw": line}
-		if len(parts) > 1:
-			row["status"] = parts[1]
-		if len(parts) > 2:
-			row["state"] = parts[2]
+		if header:
+			row.update({key: value for key, value in zip(header, parts) if key})
+			row["name"] = row.get("name") or (parts[0] if parts else line)
+		else:
+			if len(parts) > 1:
+				row["status"] = parts[1]
+			if len(parts) > 2:
+				row["state"] = parts[2]
 		rows.append(row)
 	return rows
 

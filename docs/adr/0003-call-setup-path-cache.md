@@ -45,10 +45,11 @@ violate the no-second-backend invariant.
    last-known-good entries on a miss, read documents, and return XML. A cache
    read or write failure is logged and ignored; the handler still builds and
    returns a document.
-6. **The shared secret hash is cached in Redis.** The handler can authenticate
-   FreeSWITCH while MariaDB is down, then serve last-known-good XML. If neither
-   Redis nor MariaDB can provide the hash, the handler fails closed with
-   `Forbidden`.
+6. **The shared secret hash is cached in Redis.** An executing handler can
+   authenticate FreeSWITCH while MariaDB is unavailable, then serve
+   last-known-good XML. Frappe’s request middleware still needs MariaDB, so a
+   full outage can fail before the handler runs. If neither Redis nor MariaDB
+   can provide the hash, the handler fails closed with `Forbidden`.
 7. **The control plane invalidates after commit.** Publish, rollback,
    enable/disable, settings changes, Tenant changes and extension/queue changes
    register an after-commit invalidation. Invalidating before commit would let a
@@ -65,8 +66,9 @@ violate the no-second-backend invariant.
 
 - A warm call setup performs a cached tenant lookup, one document cache read and
   the shared-secret check; no MariaDB query and no compilation.
-- A MariaDB outage or compiler bug degrades to the last good XML, not to an
-  empty dialplan.
+- A compiler or lookup failure inside an executing request degrades to the last
+  good XML, not to an empty dialplan. A full MariaDB outage is still a Frappe
+  availability failure at the HTTP layer.
 - Publish, rollback and enable/disable are the only operations that change what
   is served, and they are explicit.
 - Tenant scoping is in place on documents and cache keys; domain/context mapping

@@ -63,5 +63,11 @@
 - Public documentation set: install and feature README, docs index, operations
   guide, development guide, security policy and deferred-work list.
 - Docker Desktop development stack with Frappe and FreeSWITCH. The Frappe image
-  installs `redis-server` for bench init, and `FS_SWITCH_RTP_START` /
+  installs `redis-server` and `yarn` for bench init, and `FS_SWITCH_RTP_START` /
   `FS_SWITCH_RTP_END` make the host RTP range configurable.
+- ESL event-socket ACL is `lan` in Docker so the separate Frappe container can
+  connect; the default `loopback.auto` rejects it.
+- Live acceptance harness for Tenants, roles, row isolation, DIDs, publishing,
+  XML-curl handlers, ESL status changes and realtime recipients.
+- Streamlined FreeSWITCH callcenter output parsing: header rows are skipped and
+  agent status/state use named columns.

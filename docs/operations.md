@@ -66,9 +66,11 @@ document.
 - Publish, rollback, enable/disable, settings, Tenant, extension, queue and
   gateway changes invalidate the current entry after commit.
 - Handlers never invalidate. They read, fill on a miss, and return XML.
-- If MariaDB is down, a warm cache plus the cached secret hash can still serve
-  last-known-good XML. If neither store can authenticate the request, the
-  handler fails closed.
+- A warm cache plus the cached secret hash keeps an executing handler alive
+  during a database failure. A full MariaDB outage still fails at the Frappe
+  HTTP middleware before the handler runs, so do not treat last-known-good as a
+  database-outage workaround. If neither store can authenticate the request,
+  the handler fails closed.
 
 The routing map of enabled Tenants is cached in Redis at
 `fs_switch:xml:tenant-map` so a warm call setup does not read MariaDB for Tenant
@@ -161,19 +163,24 @@ Install `freeswitch/install/esl-listener.service` for a long-running service.
 The Docker entrypoint starts the listener automatically. The listener reconnects
 after a FreeSWITCH restart.
 
+The Docker entrypoint sets the event-socket ACL to `lan` so the separate Frappe
+container can connect over the private Docker network. The ESL port is not
+published to the host. If you see `Rejected by acl "loopback.auto"`, the
+FreeSWITCH event-socket ACL still excludes the Frappe container.
+
 ## Troubleshooting
 
 | Symptom | Check |
 |---|---|
 | FreeSWITCH gets `not found` | Is a Flow Published and enabled? Does `published_tenant` match the resolved Tenant? Is a last-known-good entry present? |
 | Calls still use old routing | Was the Flow published? Did the cache invalidate? Did `reloadxml` succeed? |
-| Console says FreeSWITCH offline | ESL host, port and password; the ESL port must be reachable from Frappe, not exposed publicly. |
+| Console says FreeSWITCH offline | ESL host, port, password and ACL; the ESL port must be reachable from Frappe, not exposed publicly. Docker uses `lan` because the default `loopback.auto` rejects the Frappe container. |
 | Live state is stale | Is the ESL listener running? Is the console on **Polling fallback**? Check the Socket.IO URL, port, CORS and session cookie. |
 | Publish fails | Read the validation error. The compiler rejects broken routes before version history or serving changes. |
 | Publish succeeded but XML-curl is stale | Check the Redis connection, the cache key Tenant/context, and FreeSWITCH's `reloadxml`. |
 | User sees an empty console | Is the user an enabled member of a Tenant? A projected `FS Switch *` role alone is not enough; the membership row is the source of truth. |
 | Tenant change is rejected | SIP domains and default contexts must be unique among enabled Tenants. A Flow context must match its Tenant. |
-| MariaDB outage breaks call setup | Confirm Redis is up, the secret hash is cached and a last-known-good document exists. |
+| MariaDB outage breaks call setup | Frappe’s HTTP middleware still needs MariaDB, so a full outage can fail before the handler. Restore MariaDB; last-known-good only protects compiler or lookup failures inside an executing request. |
 
 ## Backup and recovery
 

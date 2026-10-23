@@ -230,28 +230,44 @@ Missing:
 - Media manager, TTS and ASR.
 - Tenant quotas and deeper tenant settings.
 
-## Outstanding live verification
+## Live acceptance result
 
-These are implemented in code but not yet proven on a bench and real FreeSWITCH:
+A local Docker acceptance run on 2026-10-23 passed:
 
-- `bench migrate` for Tenant fields, roles, membership projection and DID
-  DocType.
-- Permission hooks and row-level isolation in real Frappe requests.
-- Socket.IO authentication, namespace `/<site>`, CORS, cookies and public
-  socket URL/port.
-- XML-curl replay with cold cache, warm cache and MariaDB down.
-- Semantic XML in FreeSWITCH: menu, timeout, loop, queue transfer and variable
+- `bench migrate` and creation of `FS Tenant`, `FS Tenant Member` and `FS DID`.
+- Creation of `FS Switch Admin`, `FS Switch Supervisor` and `FS Switch Agent`.
+- Membership projection and row-level isolation across two Tenants.
+- Admin, Supervisor and Agent role matrix; Agent own-extension access.
+- DID normalization and Tenant/Flow assignment.
+- Publish and Published status for two Flows.
+- Directory, dialplan and callcenter handler separation by Tenant.
+- HTTP XML-curl cold and warm cache, wrong secret returns 403.
+- Global `callcenter.conf` containing the acceptance queue and agent.
+- Socket.IO handshake, session-cookie authentication and realtime delivery.
+- A loopback call event delivered end-to-end from ESL listener to Socket.IO.
+- ESL live data and agent status changes.
+- Realtime recipient separation by Tenant.
+
+Observed limitation:
+
+- With MariaDB stopped, the HTTP XML-curl request returned 500 before the
+  handler ran because Frappe’s request middleware needs MariaDB. The handler
+  cache and secret hash work only inside an executing request; they are not a
+  full database-outage workaround.
+
+Still pending:
+
+- Browser visual QA of the console, live event rendering and My extension.
+- A real FreeSWITCH call lab: menu, timeout, loop, queue transfer and variable
   persistence.
-- Global `callcenter.conf` queues and agents across Tenants.
-- Live Tenant isolation and live actions.
-- Tenant selector, role-aware navigation, realtime event application and My
-  extension page.
-- Publish, rollback and reload under load.
+- A real multi-Tenant queue call and SIP/queue event fan-out.
+- Live Tenant isolation with real SIP channels and agents.
 
 ## Recommended next order
 
-1. **Live bench acceptance** — migrate, roles, permissions, Socket.IO, DID
-   DocType and XML-curl. The checklist is in [`ACCEPTANCE.md`](ACCEPTANCE.md).
+1. **Close residual live verification** - browser QA, a real FreeSWITCH call
+   lab and real ESL event fan-out. The checklist is in
+   [`ACCEPTANCE.md`](ACCEPTANCE.md).
 2. **Finish the Tenant layer** — broader Tenant settings and the naming
    migration needed for per-Tenant uniqueness.
 3. **Supervisor wallboard** — queue depth, hold metrics, call-path highlighting,

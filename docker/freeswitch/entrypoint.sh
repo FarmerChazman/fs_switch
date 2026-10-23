@@ -62,8 +62,13 @@ sed -i -e 's|^\(\s*\)<param name="ws-binding"  *value=":5066"/>|\1<!-- ws-bindin
        "$ETC/sip_profiles/internal.xml"
 
 # Event socket: listen on all interfaces inside the Docker network (not published).
+# mod_event_socket defaults to the loopback ACL, which rejects the separate
+# Frappe container; lan covers the private Docker network without opening it to
+# the public internet.
 sed -i -e 's|<param name="listen-ip" value="[^"]*"/>|<param name="listen-ip" value="0.0.0.0"/>|' \
        -e "s|<param name=\"password\" value=\"[^\"]*\"/>|<param name=\"password\" value=\"${FS_SWITCH_ESL_PASSWORD}\"/>|" \
+       "$ETC/autoload_configs/event_socket.conf.xml"
+sed -i '/<param name="listen-port" value="8021"\/>/a\    <param name="apply-inbound-acl" value="lan"/>' \
        "$ETC/autoload_configs/event_socket.conf.xml"
 
 # Domain and media addresses.

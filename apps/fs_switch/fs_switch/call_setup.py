@@ -191,11 +191,12 @@ def secret_hash(value: str) -> str:
 
 
 def expected_secret_hash() -> str:
-	"""Return the xml-curl secret hash, cached so a MariaDB outage still auths.
+	"""Return the xml-curl secret hash, cached so the handler can still auth.
 
-	The hash lives in Redis, not MariaDB. With the cache warm, FreeSWITCH can
-	authenticate and receive last-known-good XML even when the database is down.
-	If neither store is available the caller fails closed.
+	The hash lives in Redis, not MariaDB. This keeps a handler that is already
+	executing alive during a database failure. It does not make a Frappe HTTP
+	request independent of MariaDB: Frappe's request middleware can fail before
+	the handler runs. If neither store is available the caller fails closed.
 	"""
 	frappe = _frappe()
 	store = _store(frappe)

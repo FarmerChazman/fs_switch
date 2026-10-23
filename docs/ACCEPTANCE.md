@@ -111,8 +111,9 @@ Confirm:
 - `callcenter.conf` contains every enabled Tenant’s queues and agents.
 - A cold cache builds and caches the document.
 - A warm cache returns the same document without a rebuild.
-- With MariaDB stopped, a warm cache plus the cached secret hash still serves
-  last-known-good XML.
+- With MariaDB stopped, record whether the request reaches the handler. In the
+  current Frappe stack it fails at HTTP middleware before the cache is read;
+  this is a known limitation, not a handler-cache failure.
 - A wrong context/domain falls back to the configured default Tenant.
 
 Inspect cache keys:
@@ -162,7 +163,20 @@ With a test call or a simulated ESL event:
 - Verify `reloadxml` after publish and rollback.
 - Record any XML or ESL error from `docker compose logs freeswitch`.
 
-## 11. Evidence
+## 11. Recorded result
+
+The local Docker run on 2026-10-23 passed migration, role creation, membership
+projection, Tenant row isolation, DID creation, publishing, HTTP XML-curl with
+cold and warm cache, wrong-secret rejection, Socket.IO auth/delivery, ESL live
+data, agent status changes, and a loopback call event delivered from the ESL
+listener through Frappe realtime to Socket.IO.
+
+One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
+the handler runs because Frappe’s request middleware needs the database. The
+handler-level cache and secret hash are still useful, but they are not a full
+database-outage workaround.
+
+## 12. Evidence
 
 Record the commit, Docker image IDs, command output and screenshots. Update
 [`STATUS.md`](STATUS.md) and [`DEFERRED.md`](DEFERRED.md) with what passed and

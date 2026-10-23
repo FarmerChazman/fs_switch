@@ -229,6 +229,9 @@ def ensure_did(number, tenant, flow):
 
 
 frappe.set_user(ADMIN)
+# bench console does not always initialise the user's locale; Frappe's version
+# diff formatter needs one when it formats Datetime fields.
+frappe.local.lang = frappe.local.lang or "en"
 ensure_default_tenant()
 ensure_tenant_roles()
 
@@ -259,6 +262,8 @@ flow_a = ensure_flow("Acceptance A inbound", tenant_a, "accept_a")
 flow_b = ensure_flow("Acceptance B inbound", tenant_b, "accept_b")
 did_a = ensure_did("+14155550101", tenant_a, flow_a)
 did_b = ensure_did("+14155550102", tenant_b, flow_b)
+did_a_doc = frappe.get_doc("FS DID", did_a)
+did_b_doc = frappe.get_doc("FS DID", did_b)
 
 frappe.db.commit()
 invalidate_all()
@@ -297,11 +302,29 @@ record("admin_a", {
 	"extensions": [row.name for row in frappe.get_list("FS Extension", fields=["name"])],
 })
 
+frappe.set_user(USERS["supervisor_a"])
+record("supervisor_a", {
+	"roles": [role for role in frappe.get_roles() if role.startswith("FS Switch")],
+	"tenants": [row.name for row in frappe.get_list("FS Tenant", fields=["name"])],
+	"extensions": [row.name for row in frappe.get_list("FS Extension", fields=["name"])],
+	"extension_write": frappe.has_permission("FS Extension", "write", doc=ext_a_doc),
+	"did_read": frappe.has_permission("FS DID", "read", doc=did_a_doc),
+})
+
+frappe.set_user(USERS["admin_b"])
+record("admin_b", {
+	"roles": [role for role in frappe.get_roles() if role.startswith("FS Switch")],
+	"tenants": [row.name for row in frappe.get_list("FS Tenant", fields=["name"])],
+	"extensions": [row.name for row in frappe.get_list("FS Extension", fields=["name"])],
+	"dids": [row.name for row in frappe.get_list("FS DID", fields=["name"])],
+})
+
 frappe.set_user(USERS["agent_a"])
 record("agent_a", {
 	"roles": [role for role in frappe.get_roles() if role.startswith("FS Switch")],
 	"own_extension_read": frappe.has_permission("FS Extension", "read", doc=ext_a_doc),
 	"other_extension_read": frappe.has_permission("FS Extension", "read", doc=ext_b_doc),
+	"did_read": frappe.has_permission("FS DID", "read", doc=did_a_doc),
 	"softphone": (
 		frappe.get_attr("fs_switch.api.get_softphone_config")(tenant=tenant_a) or {}
 	).get("extension"),

@@ -39,7 +39,9 @@ Reports are especially useful for:
 - Use HTTPS for the Frappe site and `wss://` for browser softphones.
 - Set a long, random `FS_SWITCH_XML_CURL_SECRET`; the XML-curl endpoint is
   reachable by guests but rejects requests without it.
-- Set a strong ESL password and keep port 8021 inside the private network.
+- Set a strong ESL password and keep port 8021 inside the private network. The
+  Docker entrypoint uses the `lan` ACL so the Frappe container can connect; do
+  not publish 8021 to the host or public internet.
 - Use Tenant membership for console access. DocType role permissions grant the
   capability; membership rows and the permission hooks narrow it to the right
   Tenants. System Manager is the global override.

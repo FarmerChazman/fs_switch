@@ -199,7 +199,8 @@ For the product:
   joins and loops without path explosion.
 - **XML-curl must fail safely.** It is on the call-setup path and serves whole
   documents from cache, with a last-known-good fallback and a cached secret hash
-  so a MariaDB outage does not drop calls.
+  for handler-level failures. Frappe’s HTTP middleware still needs MariaDB, so a
+  full database outage is not transparently survived.
 - **No second backend.** Do not introduce Laravel, Go or a separate Node service
   for FreeSWITCH control.
 
