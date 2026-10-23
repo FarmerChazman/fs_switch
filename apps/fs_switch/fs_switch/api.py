@@ -249,6 +249,11 @@ def get_bootstrap(tenant: str | None = None):
 			"queues": frappe.db.count("FS Queue", {"enabled": 1, "tenant": active}),
 			"dialplans": frappe.db.count("FS Dialplan", {"enabled": 1, "tenant": active}),
 		}
+	elif active and role == "Agent":
+		counts["extensions"] = frappe.db.count(
+			"FS Extension",
+			{"enabled": 1, "tenant": active, "user": frappe.session.user},
+		)
 	settings_payload = {}
 	if role in ("System Manager", "Admin", "Supervisor"):
 		settings_payload = {

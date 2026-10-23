@@ -248,6 +248,12 @@ A local Docker acceptance run on 2026-10-23 passed:
 - ESL live data and agent status changes.
 - Realtime recipient separation by Tenant.
 - Authenticated `/fs-switch` HTML and built `app.js` served with HTTP 200.
+- Browser QA: Admin Overview, Tenant switch, DIDs, Tenants panel, Dialplans
+  list, and Live Agents.
+- Browser QA: Agent-only navigation, My extension, password reveal and
+  self-service status change.
+- Browser QA: Supervisor-only navigation, live Agent status change and
+  Tenant-scoped lists.
 
 Observed limitation:
 
@@ -258,13 +264,13 @@ Observed limitation:
 
 Still pending:
 
-- Browser visual QA of the console, live event rendering and My extension. The
-  authenticating desktop browser was not connected to the session; the HTML and
-  compiled JS were fetched successfully, but interactive layout QA remains.
 - A real FreeSWITCH call lab: menu, timeout, loop, queue transfer and variable
   persistence.
 - A real multi-Tenant queue call and SIP/queue event fan-out.
 - Live Tenant isolation with real SIP channels and agents.
+- Deep interaction QA of the semantic canvas, property drawer, route simulator,
+  publish/rollback drawer and diff drawer. The lists and role-aware pages were
+  visually checked; the canvas was not.
 
 ## Recommended next order
 

@@ -174,8 +174,20 @@ page and built `app.js` were also served with HTTP 200.
 
 The console page initially returned 500 because Frappe expects the controller
 for `fs-switch.html` at `www/fs_switch.py`, not `www/fs-switch.py`. Renaming the
-controller fixed the page. Browser interaction QA still requires a connected
-desktop browser.
+controller fixed the page.
+
+Browser QA with the local Chromium session also passed:
+
+- Admin Overview showed **Live push**, **FreeSWITCH connected**, Tenant selector
+  and live counts.
+- Tenant switching from Default to Acceptance A updated DIDs and live data.
+- Tenants panel showed all Tenants with the default row protected from delete.
+- Dialplans list showed the acceptance Flow as **Published v3**.
+- Live Agents showed `7101@accept_a` with `Available`/`Waiting`.
+- Supervisor status change from the Agents table passed.
+- Agent navigation showed only Overview and My extension; My extension showed
+  the extension, context, SIP domain, password reveal and status control.
+- Agent, Supervisor and Admin role-aware navigation matched the intended model.
 
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The

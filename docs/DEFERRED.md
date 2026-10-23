@@ -9,9 +9,10 @@ The local Docker acceptance run passed migration, role projection, tenant row
 isolation, DID creation, publishing, XML-curl cold/warm requests, Socket.IO
 authentication and delivery, ESL live data and agent status changes. Remaining:
 
-- Visually QA the semantic canvas, editor and list diff drawers,
-  publish/rollback, versions drawer, route simulator, Tenant selector, Tenants
-  panel, role-aware navigation, live event rendering and reload warnings.
+- Deep interaction QA of the semantic canvas, property drawer, route simulator,
+  publish/rollback drawer and diff drawer. Admin, Supervisor and Agent pages,
+  Tenant switching, DIDs, Tenants, Live Agents and My extension were visually
+  checked in a browser.
 - Lab-test generated semantic XML in FreeSWITCH: menu, timeout, loop, queue
   transfer and variable persistence across transfers.
 - Lab-test multi-Tenant `callcenter.conf` queues and agents with a real call.

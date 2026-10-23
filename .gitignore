@@ -34,3 +34,8 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+
+# Agent tooling installed by the environment
+.agents/
+.opencode/skills/*
+skills-lock.json
