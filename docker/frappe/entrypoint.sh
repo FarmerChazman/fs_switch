@@ -23,6 +23,13 @@ bench set-config -g default_site "$FS_SWITCH_SITE"
 bench set-config -g webserver_port 8000
 bench set-config -g socketio_port 9000
 
+# The site lives in a persistent volume; the app source lives in the image.
+# Recreate the source directory when a container is replaced on an upgrade.
+if [ -d "sites/$FS_SWITCH_SITE" ] && [ ! -d "apps/fs_switch" ]; then
+  echo "restoring FS Switch app source"
+  cp -r "$FS_SWITCH_ROOT/apps/fs_switch" apps/
+fi
+
 if [ ! -d "sites/$FS_SWITCH_SITE" ]; then
   echo "first start: creating site, installing FS Switch and building the console"
   bash "$FS_SWITCH_ROOT/setup_apps.sh"
