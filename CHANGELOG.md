@@ -71,3 +71,5 @@
   XML-curl handlers, ESL status changes and realtime recipients.
 - Streamlined FreeSWITCH callcenter output parsing: header rows are skipped and
   agent status/state use named columns.
+- Renamed the console controller to `www/fs_switch.py` so Frappe finds it for
+  `www/fs-switch.html`; the console page no longer returns HTTP 500.

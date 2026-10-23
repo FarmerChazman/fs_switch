@@ -247,6 +247,7 @@ A local Docker acceptance run on 2026-10-23 passed:
 - A loopback call event delivered end-to-end from ESL listener to Socket.IO.
 - ESL live data and agent status changes.
 - Realtime recipient separation by Tenant.
+- Authenticated `/fs-switch` HTML and built `app.js` served with HTTP 200.
 
 Observed limitation:
 
@@ -257,7 +258,9 @@ Observed limitation:
 
 Still pending:
 
-- Browser visual QA of the console, live event rendering and My extension.
+- Browser visual QA of the console, live event rendering and My extension. The
+  authenticating desktop browser was not connected to the session; the HTML and
+  compiled JS were fetched successfully, but interactive layout QA remains.
 - A real FreeSWITCH call lab: menu, timeout, loop, queue transfer and variable
   persistence.
 - A real multi-Tenant queue call and SIP/queue event fan-out.

@@ -169,7 +169,13 @@ The local Docker run on 2026-10-23 passed migration, role creation, membership
 projection, Tenant row isolation, DID creation, publishing, HTTP XML-curl with
 cold and warm cache, wrong-secret rejection, Socket.IO auth/delivery, ESL live
 data, agent status changes, and a loopback call event delivered from the ESL
-listener through Frappe realtime to Socket.IO.
+listener through Frappe realtime to Socket.IO. The authenticated `/fs-switch`
+page and built `app.js` were also served with HTTP 200.
+
+The console page initially returned 500 because Frappe expects the controller
+for `fs-switch.html` at `www/fs_switch.py`, not `www/fs-switch.py`. Renaming the
+controller fixed the page. Browser interaction QA still requires a connected
+desktop browser.
 
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The
