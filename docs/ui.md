@@ -2,14 +2,16 @@
 
 The console is a Vue 3 application served at `/fs-switch`. It uses PrimeVue for
 forms, tables and drawers, and Vue Flow for the dialplan canvas. The layout is a
-three-in-one interface:
+four-part interface:
 
-1. **System tree** — the left sidebar. It is the anchor: contexts, extensions,
+1. **Top bar** — the active Tenant selector, Socket.IO status, FreeSWITCH
+   connection status and a manual live refresh.
+2. **System tree** — the left sidebar. It is the anchor: Tenants, extensions,
    gateways, queues, dialplans and live views.
-2. **Tabbed workspace** — the main panel. Selecting a tree item opens a
+3. **Tabbed workspace** — the main panel. Selecting a tree item opens a
    workspace with tabs for settings, live status, table view, flow view and XML
    preview.
-3. **Visual dialplan** — a Vue Flow canvas inside the dialplan workspace.
+4. **Visual dialplan** — a Vue Flow canvas inside the dialplan workspace.
    Semantic flows use intent-level nodes with typed output ports; raw dialplans
    use FreeSWITCH application nodes. Clicking a node opens a PrimeVue property
    drawer.
@@ -18,6 +20,7 @@ three-in-one interface:
 
 ```text
 Overview
+Tenants
 Telephony
   Extensions
   Gateways
@@ -30,27 +33,60 @@ Live
 Settings
 ```
 
-The tree is intentionally shallow. FreeSWITCH contexts are shown on the
-dialplan and extension forms rather than as a separate layer; this avoids a
-second hierarchy that would have to be kept in sync with the documents.
+The tree is role-aware. A Tenant Admin sees Tenants, Telephony and Live but not
+the global Settings page. A Supervisor sees Extensions and Live; an Agent sees
+only Overview. System Manager sees everything. The tree is intentionally
+shallow: a Tenant's context is shown on the dialplan and extension forms rather
+than as a separate layer.
+
+## Tenant selector
+
+The top-bar selector changes the active Tenant. The choice is remembered in
+`localStorage` and restored on the next visit if the user still belongs to that
+Tenant. Switching Tenant reloads the bootstrap counts and the live snapshot;
+realtime events for other Tenants are ignored.
+
+New extensions, gateways, queues and Flows default to the active Tenant. The
+Tenant field is disabled after creation. A Tenant's SIP domain and default
+context are unique among enabled Tenants, and a Flow's context must match its
+Tenant's default context.
+
+## Tenants panel
+
+System Manager can create, edit and delete Tenants. A Tenant Admin can edit its
+own Tenant and its membership rows, but cannot create or delete a Tenant. The
+default Tenant cannot be disabled or deleted, because it is the fallback for
+unknown routing labels. Membership roles are:
+
+- **Admin** — read and write configuration, publish and roll back Flows.
+- **Supervisor** — read configuration, run live actions and see live state.
+- **Agent** — read only their own extension; the Telephony and Live trees are
+  hidden.
+
+The member list is a child table. Removing a user from a Tenant or disabling the
+Tenant removes the projected `FS Switch *` role after commit.
 
 ## Extension workspace
 
 Tabs:
 
-- **Details** — extension, user, display name, SIP password, voicemail, caller
-  ID and agent status.
+- **Details** — Tenant, extension, user, display name, SIP password, voicemail,
+  caller ID and agent status. Leaving context blank uses the Tenant's default
+  context.
 - **Live** — registration state and active channels for this extension (future
   release).
 
-The table shows extension, display name, user, enabled and agent status.
+The table shows Tenant, extension, display name, user, enabled and agent status.
+Supervisors see the table read-only; Agents do not see the Telephony tree.
 
 ## Queue workspace
 
 Tabs:
 
-- **Details** — queue name, strategy, max wait, music on hold, backup queue.
-- **Agents** — the child table of extensions and levels.
+- **Details** — Tenant, queue name, strategy, max wait, music on hold, backup
+  queue.
+- **Agents** — the child table of extensions and levels. Every agent and backup
+  queue must belong to the same Tenant.
 - **Live** — queue depth, waiting callers and available agents (future release).
 
 ## Dialplan workspace
@@ -61,9 +97,11 @@ The dialplan list offers two creation paths:
 - **Raw dialplan** — the advanced FreeSWITCH application-chain editor.
 
 Semantic flows open in `SemanticFlowEditor.vue`; raw flows keep the original
-`FS Node` canvas. The list shows **Format** and **Publish** columns so an
-administrator can tell the graph type and serving state apart before opening a
-document. The Publish column shows `Draft` or `Published vN`.
+`FS Node` canvas. The list is filtered to the active Tenant and shows **Tenant**,
+**Format** and **Publish** columns so an administrator can tell scope, graph
+type and serving state apart before opening a document. The Publish column shows
+`Draft` or `Published vN`. New Flows default to the active Tenant and its default
+context.
 
 The list actions publish a saved Draft and open the published-version history.
 Rollback in that history repoints FreeSWITCH to an earlier Published version;
@@ -88,8 +126,9 @@ Tabs:
 - **XML** — the draft compiled by the same compiler FreeSWITCH uses. This is a
   preview; the Published XML is what xml-curl serves. The preview works before
   the flow is saved.
-- **Settings** — context, extension name, destination pattern, priority,
-  enabled flag and entry step.
+- **Settings** — Tenant, context, extension name, destination pattern, priority,
+  enabled flag and entry step. The context is fixed to the Tenant's default
+  context.
 
 Validation runs automatically while the flow changes and again before save.
 Every non-terminal output must be connected. Saving is blocked until the flow
@@ -109,8 +148,8 @@ Tabs:
   FreeSWITCH application and data/arguments.
 - **Table** — the same nodes in order, with up/down controls.
 - **XML** — the compiled extension, generated by the backend.
-- **Settings** — context, extension name, destination pattern, priority and
-  enabled flag.
+- **Settings** — Tenant, context, extension name, destination pattern, priority
+  and enabled flag. The context is fixed to the Tenant's default context.
 
 The raw canvas compiles a linear application chain. It is retained as an escape
 hatch for senior engineers; it is not the default product model. Both editors
@@ -122,9 +161,17 @@ show the Draft/Published tag and a Publish action in the toolbar.
 - **Registrations** — `show registrations as json`.
 - **Agents** — `callcenter_config agent list`, with status changes.
 
-The data is polled every five seconds. The ESL listener also publishes realtime
-events so a later release can switch to push updates without changing the UI
-contract.
+The console takes one snapshot, then connects to the site's Socket.IO namespace
+and applies `fs_switch_call`, `fs_switch_agent` and `fs_switch_registration`
+events in place. Events carry the Tenant and are published only to that
+Tenant's Admins/Supervisors and System Managers; the active Tenant's rows are
+shown. While the socket is disconnected, the console polls every 30 seconds as a
+fallback. The top bar shows whether the stream is **Live push**, **Connecting**
+or **Polling fallback**.
+
+A Supervisor or Tenant Admin can run live actions. The API checks the active
+Tenant and the target channel or agent before it reaches ESL, so a supervisor in
+one Tenant cannot act on another Tenant's rows. Agents do not see the Live tree.
 
 ## Visual language
 

@@ -14,6 +14,7 @@ const props = defineProps({
   isAdmin: Boolean,
   notify: { type: Function, required: true },
 })
+const emit = defineEmits(['changed'])
 
 const form = ref({})
 const gateways = ref([])
@@ -53,6 +54,7 @@ async function save() {
     props.notify('Settings saved.')
     form.value.xml_curl_secret = ''
     form.value.esl_password = ''
+    emit('changed')
   } catch (error) {
     props.notify(error.message, 'error')
   } finally {

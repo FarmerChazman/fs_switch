@@ -28,7 +28,6 @@ import {
   normalizeNodeConfig,
   outputsForNode,
   specFor,
-  stripPublishState,
 } from '../flow'
 import FlowDiffDrawer from './FlowDiffDrawer.vue'
 import SemanticNode from './SemanticNode.vue'
@@ -37,6 +36,9 @@ const props = defineProps({
   doc: { type: Object, required: true },
   notify: { type: Function, required: true },
   isAdmin: Boolean,
+  tenant: { type: String, default: '' },
+  tenantContext: { type: String, default: 'default' },
+  tenants: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['saved', 'close'])
 
@@ -127,11 +129,18 @@ const endpointText = computed({
   },
 })
 
+function selectTenant(tenant) {
+  form.value.tenant = tenant
+  const row = (props.tenants || []).find((item) => item.tenant === tenant)
+  if (row?.default_context) form.value.context = row.default_context
+}
+
 function hydrate(doc) {
   form.value = {
     name: '',
     title: '',
-    context: 'default',
+    tenant: props.tenant || 'default',
+    context: props.tenantContext || 'default',
     extension_name: '',
     destination_number: '^1000$',
     priority: 10,
@@ -440,8 +449,8 @@ async function save() {
   try {
     const priority = form.value.priority
     const numericPriority = Number(priority)
-    const payload = stripPublishState({
-      ...form.value,
+    const payload = {
+      tenant: form.value.tenant,
       title: String(form.value.title || '').trim(),
       context: String(form.value.context || 'default').trim() || 'default',
       extension_name: String(form.value.extension_name || '').trim(),
@@ -457,8 +466,7 @@ async function save() {
       description: String(form.value.description || ''),
       graph_format: 'semantic',
       graph: graphPayload(),
-    })
-    if (!payload.name) delete payload.name
+    }
     const saved = form.value.name
       ? await api.update('FS Dialplan', form.value.name, payload)
       : await api.create('FS Dialplan', payload)
@@ -999,8 +1007,22 @@ onBeforeUnmount(() => {
                 <InputText id="sf-title" v-model="form.title" />
               </div>
               <div class="fs-field">
+                <label for="sf-tenant">Tenant</label>
+                <Select
+                  id="sf-tenant"
+                  :model-value="form.tenant"
+                  :options="tenants"
+                  option-label="tenant_name"
+                  option-value="tenant"
+                  :disabled="!isNew"
+                  placeholder="Tenant"
+                  @update:model-value="selectTenant"
+                />
+              </div>
+              <div class="fs-field">
                 <label for="sf-context">Context</label>
-                <InputText id="sf-context" v-model="form.context" />
+                <InputText id="sf-context" v-model="form.context" disabled />
+                <small>Matches the Tenant's default context.</small>
               </div>
               <div class="fs-field">
                 <label for="sf-ext">Extension name</label>

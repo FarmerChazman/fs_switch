@@ -45,8 +45,14 @@ const resourceUrl = (doctype, name = '') =>
   `/api/resource/${encodeURIComponent(doctype)}${name ? `/${encodeURIComponent(name)}` : ''}`
 
 export const api = {
-  bootstrap: () => request('/api/method/fs_switch.api.get_bootstrap'),
-  live: () => request('/api/method/fs_switch.api.get_live_data'),
+  bootstrap: (tenant = '') => {
+    const query = tenant ? `?tenant=${encodeURIComponent(tenant)}` : ''
+    return request(`/api/method/fs_switch.api.get_bootstrap${query}`)
+  },
+  live: (tenant = '') => {
+    const query = tenant ? `?tenant=${encodeURIComponent(tenant)}` : ''
+    return request(`/api/method/fs_switch.api.get_live_data${query}`)
+  },
   preview: (name) =>
     request(`/api/method/fs_switch.api.preview_dialplan?name=${encodeURIComponent(name)}`),
   flowCatalog: () => request('/api/method/fs_switch.api.get_flow_catalog'),
@@ -104,11 +110,15 @@ export const api = {
       body: JSON.stringify(settings),
     }),
   list: (doctype, params = {}) => {
+    const { tenant, ...rest } = params
     const query = new URLSearchParams({
       limit_page_length: '200',
       fields: '["*"]',
-      ...params,
+      ...rest,
     })
+    if (tenant) {
+      query.set('filters', JSON.stringify([[doctype, 'tenant', '=', tenant]]))
+    }
     return request(`${resourceUrl(doctype)}?${query}`)
   },
   get: (doctype, name) => request(resourceUrl(doctype, name)),

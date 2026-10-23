@@ -58,17 +58,19 @@ closed.
 
 Each cached document also has a **Last-known-good** entry. Invalidation removes
 only the current entry; last-known-good survives so a database or compiler
-failure serves the most recent document that built successfully. With no
+failure serves the most recent document that built successfully. The
+`callcenter.conf` request is global in FreeSWITCH; without a context it serves
+the default Tenant, which is a known multi-Tenant limitation. With no
 last-known-good the handler returns FreeSWITCH's not-found document instead of
 an empty one. Handlers never write and never invalidate; the control plane
 invalidates after commit from publish, rollback, enable/disable, settings and
 the extension/queue documents that feed the handlers.
 
-The cache key includes a tenant. The single-tenant alpha has an FS Tenant
-DocType, a default Tenant and tenant-scoped documents; `resolve_tenant()` caches
-the configured default in Redis and still resolves every domain/context to it.
-Domain/context mapping changes the resolver, not the handler or cache shape. The
-decision and failure modes are recorded in
+The cache key includes a tenant. `resolve_tenant()` reads a cached routing map
+of enabled Tenants: a SIP domain or a context resolves to its Tenant. If both
+labels are supplied and disagree, the context wins. An unknown label falls back
+to the configured default Tenant, so an existing single-Tenant deployment keeps
+working without a map entry. The decision and failure modes are recorded in
 [ADR 0003](adr/0003-call-setup-path-cache.md).
 
 ## Live path
@@ -76,10 +78,17 @@ decision and failure modes are recorded in
 - The ESL client opens a short-lived connection for commands (`show channels`,
   `uuid_kill`, `callcenter_config ...`).
 - The long-running listener opens a persistent connection and subscribes to
-  channel and call-center events.
-- Events are published on Frappe's realtime channel. The first release polls the
-  live endpoint every few seconds; subscribing the console to the socket stream
-  is deferred.
+  channel, call-center and registration events.
+- Each event is annotated with the resolved Tenant and published on Frappe
+  realtime as `fs_switch_call`, `fs_switch_agent` or `fs_switch_registration`.
+  Recipients are limited to that Tenant's Admins and Supervisors plus System
+  Managers, so an Agent never receives another extension's live rows.
+- The console connects to the site's Socket.IO namespace, takes one snapshot,
+  then applies events in place. While the socket is disconnected it polls the
+  snapshot endpoint every 30 seconds; a reconnect takes a fresh snapshot.
+- Live commands still go over a short-lived ESL connection. The API checks the
+  caller's Tenant role and the target channel or agent before running a
+  command.
 
 ## Why the dialplan is a graph
 
@@ -115,8 +124,15 @@ publish; it is read-only.
 Tenant scope is carried on Flows, extensions, queues and gateways. The default
 Tenant is created on install and upgrade. A document's Tenant is fixed after
 creation. The directory, dialplan and callcenter documents are filtered by
-tenant; the served dialplan uses `published_tenant`, not the Draft tenant. The
-alpha resolves every domain and context to `default`.
+tenant; the served dialplan uses `published_tenant`, not the Draft tenant. A
+Flow's context must match its Tenant's default context.
+
+Membership is a child table on `FS Tenant`. Frappe roles are global, so a
+membership role projects onto `FS Switch Admin`, `FS Switch Supervisor` or
+`FS Switch Agent`. DocType role permissions grant the capability and
+`permission_query_conditions` plus `has_permission` hooks narrow rows to the
+Tenants where the user holds that role. System Manager bypasses the narrowing.
+See [`ui.md`](ui.md) for the console projection.
 
 ## App boundaries
 

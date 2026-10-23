@@ -22,10 +22,12 @@ bench --site dev.localhost migrate
 Run `migrate` after pulling changes that add DocType fields, patches or a new
 schema. The migration:
 
-- creates the default Tenant if it is missing,
+- creates the configured default Tenant if it is missing,
+- creates `FS Switch Admin`, `FS Switch Supervisor` and `FS Switch Agent`,
 - backfills `tenant` on existing Flows, extensions, queues and gateways,
 - backfills `published_tenant` on already-published Flows,
-- publishes every existing valid Flow once.
+- publishes every existing valid Flow once,
+- syncs projected roles from Tenant membership.
 
 Useful commands:
 
@@ -54,6 +56,13 @@ For production, install `freeswitch/install/esl-listener.service` and adjust the
 site name and paths. The Docker entrypoint starts the listener automatically.
 The listener reconnects after a FreeSWITCH restart.
 
+The listener publishes `fs_switch_call`, `fs_switch_agent` and
+`fs_switch_registration` on Frappe realtime. The console connects to
+`/<site>` through `socket.io-client`. In development the Vite server proxies
+`/api` and `/assets`; Socket.IO still connects to the Frappe origin. Set
+`fs_switch_socketio_url` in `site_config.json` when the socket is on another
+public host or port.
+
 ## Frontend
 
 ```bash
@@ -77,9 +86,10 @@ git diff --check
 ```
 
 `pytest tests` is also supported. The compiler, publish, call-setup, route
-simulator, diff and tenant-helper tests run without a Frappe site. DocType
-validation, patches, XML-curl handlers and the console need a live bench for
-end-to-end verification.
+simulator, diff, Tenant mapping and ESL listener tests run without a Frappe
+site. DocType validation, permission hooks, patches, XML-curl handlers,
+Socket.IO authentication and the console need a live bench for end-to-end
+verification.
 
 The frontend build is the frontend check:
 

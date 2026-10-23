@@ -5,7 +5,7 @@ from fs_switch.call_setup import invalidate_after_commit
 from fs_switch.dialplan import DialplanError, compile_extension
 from fs_switch.flow import FlowError
 from fs_switch.publish import published_status
-from fs_switch.tenants import fixed_tenant
+from fs_switch.tenants import fixed_tenant, normalize_context
 
 SERVING_FIELDS = (
 	"title",
@@ -46,6 +46,15 @@ PUBLISHED_DEFAULTS = {
 class FSDialplan(Document):
 	def validate(self):
 		self.tenant = fixed_tenant(self)
+		tenant_context = normalize_context(
+			frappe.db.get_value("FS Tenant", self.tenant, "default_context")
+		)
+		self.context = normalize_context(self.context) or tenant_context or "default"
+		if tenant_context and self.context != tenant_context:
+			frappe.throw(
+				f"Context {self.context} does not belong to Tenant {self.tenant}. "
+				f"Use {tenant_context}."
+			)
 		# Publishing and rollback are the only ways to change the served version.
 		# A normal save must not let a client inject published XML or history rows.
 		if not getattr(getattr(self, "flags", None), "publishing", False):

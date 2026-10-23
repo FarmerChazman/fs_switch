@@ -18,7 +18,12 @@ import hashlib
 from types import SimpleNamespace
 
 from fs_switch.dialplan import NOT_FOUND_DOCUMENT, compile_published_dialplan
-from fs_switch.tenants import DEFAULT_TENANT, tenant_or_default
+from fs_switch.tenants import (
+	DEFAULT_TENANT,
+	resolve_tenant_from_map,
+	tenant_map_from_rows,
+	tenant_or_default,
+)
 
 SETTINGS_DOCTYPE = "FS Switch Settings"
 AGENT_STATUSES = ("Logged Out", "Available", "On Break")
@@ -27,7 +32,7 @@ CACHE_ROOT = "fs_switch:xml"
 CURRENT_ROOT = f"{CACHE_ROOT}:current"
 LAST_KNOWN_GOOD_ROOT = f"{CACHE_ROOT}:last-known-good"
 SECRET_HASH_KEY = f"{CACHE_ROOT}:xml-curl-secret-hash"
-DEFAULT_TENANT_KEY = f"{CACHE_ROOT}:default-tenant"
+TENANT_MAP_KEY = f"{CACHE_ROOT}:tenant-map"
 CURRENT_TTL = 24 * 60 * 60
 
 
@@ -132,33 +137,53 @@ class FrappeCacheStore:
 		self.frappe.cache.delete_keys(prefix + "*")
 
 
-def resolve_tenant(domain=None, context=None) -> str:
-	"""Return the Tenant for a FreeSWITCH routing label.
+def _tenant_map(frappe) -> dict:
+	"""Return the cached domain/context -> Tenant map.
 
-	The alpha is single-tenant: every domain and context resolves to the
-	configured default Tenant. The default is cached in Redis so the call-setup
-	path does not read MariaDB on every request. Domain/context mapping is a
-	later slice; the cache keys and handler contract already carry the tenant.
+	The map is built from enabled FS Tenant rows and the configured default
+	Tenant. It is invalidated after a Tenant or Settings change, not on the
+	call-setup path. A cache or database failure falls back to the default
+	Tenant, matching the single-tenant upgrade path.
 	"""
-	frappe = _frappe()
 	store = _store(frappe)
 	try:
-		cached = store.get(DEFAULT_TENANT_KEY)
+		cached = store.get(TENANT_MAP_KEY)
 	except Exception:
 		cached = None
-	if cached:
-		return tenant_or_default(cached)
+	if isinstance(cached, dict) and cached.get("default"):
+		return cached
 
 	try:
 		settings = frappe.get_single(SETTINGS_DOCTYPE)
-		tenant = tenant_or_default(getattr(settings, "default_tenant", None))
+		default = tenant_or_default(getattr(settings, "default_tenant", None))
 	except Exception:
-		tenant = DEFAULT_TENANT
+		default = DEFAULT_TENANT
 	try:
-		store.set(DEFAULT_TENANT_KEY, tenant, expires_in_sec=CURRENT_TTL)
+		rows = frappe.get_all(
+			"FS Tenant",
+			filters={"enabled": 1},
+			fields=["name", "sip_domain", "default_context", "enabled"],
+		)
+	except Exception as exc:
+		_log(frappe, f"Could not build the tenant map: {exc}", exc)
+		rows = []
+	mapping = tenant_map_from_rows(rows, default=default)
+	try:
+		store.set(TENANT_MAP_KEY, mapping, expires_in_sec=CURRENT_TTL)
 	except Exception:
 		pass
-	return tenant
+	return mapping
+
+
+def resolve_tenant(domain=None, context=None) -> str:
+	"""Return the Tenant for a FreeSWITCH routing label.
+
+	The mapping is cached in Redis so the call-setup path does not read MariaDB
+	for tenant resolution. Unknown labels fall back to the configured default
+	Tenant; duplicate labels are rejected when the Tenant is saved.
+	"""
+	mapping = _tenant_map(_frappe())
+	return resolve_tenant_from_map(mapping, domain=domain, context=context)
 
 
 def secret_hash(value: str) -> str:
@@ -273,19 +298,24 @@ def invalidate_secret():
 		_log(frappe, "Could not invalidate the xml-curl secret hash", exc)
 
 
-def invalidate_default_tenant():
+def invalidate_tenant_map():
 	frappe = _frappe()
 	try:
-		_store(frappe).delete(DEFAULT_TENANT_KEY)
+		_store(frappe).delete(TENANT_MAP_KEY)
 	except Exception as exc:
-		_log(frappe, "Could not invalidate the default tenant cache", exc)
+		_log(frappe, "Could not invalidate the tenant map cache", exc)
+
+
+def invalidate_default_tenant():
+	"""Backward-compatible name for the tenant map invalidation."""
+	invalidate_tenant_map()
 
 
 def invalidate_all():
 	for kind in ("dialplan", "directory", "callcenter"):
 		invalidate(kind)
 	invalidate_secret()
-	invalidate_default_tenant()
+	invalidate_tenant_map()
 
 
 def _after_commit(callback):
@@ -311,6 +341,17 @@ def invalidate_after_commit(*kinds: str):
 	_after_commit(run)
 
 
+def invalidate_tenant_after_commit():
+	"""Tenant changes alter routing and every document, but not the secret."""
+
+	def run():
+		for kind in ("dialplan", "directory", "callcenter"):
+			invalidate(kind)
+		invalidate_tenant_map()
+
+	_after_commit(run)
+
+
 def invalidate_all_after_commit():
 	_after_commit(invalidate_all)
 
@@ -319,6 +360,29 @@ def _frappe():
 	import frappe
 
 	return frappe
+
+
+def _tenant_field(frappe, tenant: str, field: str):
+	"""Read a Tenant field for document builders, with a test-safe fallback."""
+	db = getattr(frappe, "db", None)
+	if db is None or not hasattr(db, "get_value"):
+		return None
+	try:
+		return db.get_value("FS Tenant", tenant_or_default(tenant), field)
+	except Exception:
+		return None
+
+
+def _tenant_context(frappe, tenant: str, settings=None) -> str:
+	settings = settings or frappe.get_single(SETTINGS_DOCTYPE)
+	value = _tenant_field(frappe, tenant, "default_context")
+	return _text(value) or _text(getattr(settings, "default_context", None)) or "default"
+
+
+def _tenant_domain(frappe, tenant: str, settings=None) -> str:
+	settings = settings or frappe.get_single(SETTINGS_DOCTYPE)
+	value = _tenant_field(frappe, tenant, "sip_domain")
+	return _text(value) or _text(getattr(settings, "sip_domain", None))
 
 
 def _build_dialplan(frappe, tenant: str) -> str:
@@ -355,6 +419,7 @@ def _build_dialplan(frappe, tenant: str) -> str:
 
 def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
+	tenant_context = _tenant_context(frappe, tenant, settings)
 	users = []
 	for row in frappe.get_all(
 		"FS Extension",
@@ -366,7 +431,7 @@ def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 		full_name = row.display_name
 		if not full_name and row.user:
 			full_name = frappe.db.get_value("User", row.user, "full_name")
-		context = doc.context or settings.default_context or "default"
+		context = doc.context or tenant_context
 		users.append(
 			f"<user id={_attr(doc.extension)}>"
 			"<params>"
@@ -380,7 +445,7 @@ def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 			"</variables></user>"
 		)
 
-	domain_name = domain or settings.sip_domain or "$${domain}"
+	domain_name = domain or _tenant_domain(frappe, tenant, settings) or "$${domain}"
 	return (
 		'<document type="freeswitch/xml">'
 		f'<section name="directory"><domain name={_attr(domain_name)}>'
@@ -395,7 +460,7 @@ def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 def _build_callcenter(frappe, tenant: str) -> str:
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
 	tenant = tenant_or_default(tenant)
-	context = (settings.default_context or "default").strip() or "default"
+	context = _tenant_context(frappe, tenant, settings)
 	hold = settings.hold_music_file or "local_stream://moh"
 	queues, tiers, agents = [], [], []
 	used_extensions = set()

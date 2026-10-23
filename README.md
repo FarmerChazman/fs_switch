@@ -13,12 +13,13 @@ The name is “FS Switch” — Frappe Switch.
 Public repository:
 <https://github.com/FarmerChazman/fs_switch>
 
-> **Status: alpha.** The directory, dialplan compiler, ESL client, tenant-ready
-> data model, cached call-setup path and console are implemented. New call flows
-> use the semantic canvas with typed branch ports, live validation, route
-> simulation, draft/publish/rollback, versions and a Draft-versus-Published diff.
-> The original raw-application canvas remains available as an advanced escape
-> hatch. Do not treat the alpha as production-ready without lab-testing it
+> **Status: alpha.** The directory, dialplan compiler, ESL client, Tenant model,
+> cached call-setup path and console are implemented. New call flows use the
+> semantic canvas with typed branch ports, live validation, route simulation,
+> draft/publish/rollback, versions and a Draft-versus-Published diff. The
+> original raw-application canvas remains available as an advanced escape hatch.
+> A Tenant selector, Tenant membership roles and Socket.IO live updates are in
+> place. Do not treat the alpha as production-ready without lab-testing it
 > against your FreeSWITCH deployment.
 
 ## Why
@@ -33,8 +34,9 @@ realtime events already exist.
   Frappe documents, not hand-edited XML.
 - **No second backend** — the console uses Frappe REST, whitelisted methods and
   the existing Socket.IO/Redis realtime layer.
-- **Safe defaults** — the XML-curl endpoint is protected by a shared secret and
-  console editing is limited to System Managers.
+- **Safe defaults** - the XML-curl endpoint is protected by a shared secret and
+  Tenant membership limits what each console user can read or change. System
+  Manager remains the global override.
 - **Standalone core** — Helpdesk and CRM are optional integrations, not hard
   dependencies.
 
@@ -44,12 +46,16 @@ The UI follows a three-part layout:
 
 | Area | Purpose |
 |---|---|
-| System tree (left) | Contexts, extensions, gateways, queues, dialplans and live views |
+| Top bar | Active Tenant selector, realtime status and live refresh |
+| System tree (left) | Tenants, extensions, gateways, queues, dialplans and live views |
 | Tabbed workspace | Forms, DataTables and the dialplan XML preview |
 | Vue Flow canvas | Semantic call-flow editing with typed branch ports, or raw application chains |
 
-The first release uses PrimeVue for forms and grids and Vue Flow for the
-dialplan graph. See [`docs/ui.md`](docs/ui.md) for the design notes.
+The console uses PrimeVue for forms and grids and Vue Flow for the dialplan
+graph. Navigation and actions are role-aware: Agents see their own extension,
+Supervisors read configuration and run live operations, and Tenant Admins manage
+configuration and publishing. See [`docs/ui.md`](docs/ui.md) for the design
+notes.
 
 The product direction is in [`docs/PRODUCT.md`](docs/PRODUCT.md). The semantic
 flow schema and compiler are documented in
@@ -109,6 +115,8 @@ FS_SWITCH_WEBRTC_URL=ws://localhost:5066
 FS_SWITCH_SIP_DOMAIN=localhost
 FS_SWITCH_PUBLIC_IP=127.0.0.1
 FS_SWITCH_MAIN_DID=1000
+FS_SWITCH_DEFAULT_TENANT=default
+FS_SWITCH_DEFAULT_CONTEXT=default
 ```
 
 Use `ws://` locally: the container creates a self-signed certificate that a
@@ -138,13 +146,17 @@ then available at `/fs-switch`.
 ### Upgrading from the initial alpha
 
 Run `bench --site your.site migrate`. This adds the Draft/Published fields, the
-version history table and the tenant fields, creates the default Tenant, then
-publishes every existing valid Flow once. Existing Flows are backfilled to the
-default Tenant; a Flow that fails validation stays Draft and is not served until
-it is fixed and published.
+version history table, Tenant membership and the Tenant fields, creates the
+default Tenant, creates the app roles, then publishes every existing valid Flow
+once. Existing Flows are backfilled to the default Tenant; a Flow that fails
+validation stays Draft and is not served until it is fixed and published.
 
 Published XML and version history are server-managed. A normal save cannot
 change them; only Publish and Rollback do.
+
+The first Tenant is named `default` unless `FS_SWITCH_DEFAULT_TENANT` names it.
+It uses the configured SIP domain and default context. Add more Tenants in the
+console, or in Desk, before assigning their documents.
 
 ## Configuration
 
@@ -153,10 +165,13 @@ change them; only Publish and Rollback do.
 3. Point FreeSWITCH at
    `https://<site>/api/method/fs_switch.api.xml_curl?secret=<secret>` for the
    `directory`, `configuration` and `dialplan` bindings.
-4. Add an **FS Gateway** for your carrier, an **FS Extension** per user, and an
-   **FS Queue** for each ring group.
-5. Create an **FS Dialplan**, build the call flow in the visual editor and
-   publish it.
+4. In **Tenants**, set each Tenant's SIP domain and default context and add its
+   members. A Tenant Admin manages its own configuration; a Supervisor runs
+   live operations; an Agent sees only their own extension.
+5. Add an **FS Gateway** for your carrier, an **FS Extension** per user, and an
+   **FS Queue** for each ring group. New documents default to the active Tenant.
+6. Create an **FS Dialplan**, build the call flow in the visual editor and
+   publish it. A Flow's context must match its Tenant's default context.
 
 The container entrypoint writes the matching FreeSWITCH settings from `.env`.
 On a manual install, keep the Frappe settings and `xml_curl.conf.xml` in sync.
@@ -225,9 +240,20 @@ Draft, so save first to include canvas edits.
 Flows, extensions, queues and gateways carry a Tenant. The default Tenant is
 created on install and upgrade, and every call-setup document is filtered by
 tenant. A document's Tenant is fixed after creation. The served dialplan uses
-`published_tenant`, not the Draft tenant. The alpha resolves every domain and
-context to `default`; domain/context mapping and the tenant selector are a later
-slice.
+`published_tenant`, not the Draft tenant.
+
+Each Tenant owns one SIP domain and one default context. The directory handler
+resolves a domain to its Tenant; the dialplan and `callcenter.conf` handlers
+resolve a context. If a request carries both labels and they disagree, the
+context wins. An unknown label falls back to the configured default Tenant, so
+existing single-Tenant deployments keep working.
+
+Tenant membership is stored on the Tenant. The `Admin` role writes configuration
+and publishes; `Supervisor` reads configuration and runs live operations; `Agent`
+sees only their own extension. These project onto the Frappe roles `FS Switch
+Admin`, `FS Switch Supervisor` and `FS Switch Agent`. Row-level hooks narrow
+each role to the Tenants where the user actually holds that membership. System
+Manager is the global override.
 
 The directory, dialplan and `callcenter.conf` handlers answer from a Redis
 cache keyed by tenant and context. The cache is invalidated after commit when a
@@ -236,13 +262,29 @@ extensions or queues change. Each entry keeps a last-known-good copy, so a
 database or compiler failure still serves the most recent good XML. With no
 last-known-good the handler returns FreeSWITCH's not-found document.
 
+## Live state
+
+The ESL listener subscribes to channel, call-center and registration events and
+publishes `fs_switch_call`, `fs_switch_agent` and `fs_switch_registration` on
+Frappe realtime, only to the owning Tenant's Admins and Supervisors plus System
+Managers. The console connects to the site's Socket.IO namespace and updates
+the live tables from those events. Each payload carries the resolved Tenant, so
+switching Tenants filters the stream without a new query.
+
+The console still takes an initial snapshot and polls every 30 seconds while the
+socket is disconnected. A reconnect takes a fresh snapshot. If the browser
+cannot reach the socket port, the console keeps working on the polling fallback;
+see [`docs/operations.md`](docs/operations.md) for the URL and port settings.
+
 ## Security
 
 - The XML-curl endpoint is guest-accessible by design, but every request must
   present the shared secret; compare it in constant time.
-- Console API methods require the `System Manager` role. The read-only flow
-  catalog, validation and route simulator helpers are available to any
-  authenticated user so a non-editor can still inspect a flow.
+- Console API methods require an authenticated user. Tenant membership decides
+  read, write and live-operation capability; System Manager can do everything.
+  The read-only flow catalog, validation and route simulator helpers are
+  available to any authenticated user so a non-editor can still inspect a flow.
+- Live actions are checked against the active Tenant before they reach ESL.
 - Published XML, `published_*` fields and version history are server-managed.
   Only Publish and Rollback change what FreeSWITCH is served.
 - SIP passwords and the ESL password are stored as Frappe password fields and
@@ -266,13 +308,12 @@ tests/                      Python unit tests for the compiler and control plane
 
 ## Roadmap
 
-- Tenant UI, domain/context mapping and tenant-scoped roles
-- Console subscription to the ESL realtime event stream, with polling as fallback
+- Lab verification of the Socket.IO connection, Tenant roles and live actions
 - Call logs, voicemail and missed-call records
 - Embedded softphone, presence and screen pop
 - Carrier templates, failover and LCR/rate decks
 - Media library, TTS/ASR and AI-agent nodes
-- Role-based console access (agent, supervisor, administrator)
+- Per-Tenant uniqueness for extensions, queues, gateways and Flow titles
 - Import/export of dialplan graphs
 
 ## Contributing

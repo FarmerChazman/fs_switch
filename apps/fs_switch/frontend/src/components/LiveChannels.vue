@@ -13,6 +13,9 @@ const props = defineProps({
   bootstrap: { type: Object, default: null },
   live: { type: Object, default: null },
   isAdmin: Boolean,
+  canSupervise: Boolean,
+  tenant: { type: String, default: '' },
+  tenantContext: { type: String, default: 'default' },
   notify: { type: Function, required: true },
   refreshLive: { type: Function, required: true },
 })
@@ -28,7 +31,7 @@ const channels = () => props.live?.channels || []
 function openTransfer(row) {
   selected.value = row
   destination.value = row.dest || ''
-  transferContext.value = props.bootstrap?.settings?.default_context || 'default'
+  transferContext.value = props.tenantContext || 'default'
   transferDialog.value = true
 }
 
@@ -36,7 +39,7 @@ async function hangup(row) {
   if (!window.confirm(`Hang up channel ${row.uuid}?`)) return
   busy.value = true
   try {
-    await api.action('hangup', { uuid: row.uuid })
+    await api.action('hangup', { uuid: row.uuid, tenant: props.tenant })
     props.notify('Channel hung up.')
     await props.refreshLive(true)
   } catch (error) {
@@ -57,6 +60,7 @@ async function transfer() {
       uuid: selected.value.uuid,
       destination: destination.value.trim(),
       context: transferContext.value.trim() || 'default',
+      tenant: props.tenant,
     })
     props.notify('Channel transferred.')
     transferDialog.value = false
@@ -110,7 +114,7 @@ async function transfer() {
             <span class="fs-mono">{{ data.created || '—' }}</span>
           </template>
         </Column>
-        <Column v-if="isAdmin" header="" style="width: 160px">
+        <Column v-if="canSupervise" header="" style="width: 160px">
           <template #body="{ data }">
             <div style="display: flex; gap: 2px; justify-content: flex-end">
               <Button

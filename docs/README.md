@@ -22,8 +22,8 @@ overview. This page is the map for the rest of the documentation.
 The root README covers Docker and existing-bench installation. In day-to-day
 operation:
 
-1. Create or edit Flows, extensions, queues and gateways in Frappe or the
-   console.
+1. Create or edit Tenants, Flows, extensions, queues and gateways in Frappe or
+   the console. Tenant membership controls who can see and change them.
 2. Validate the Flow. The semantic editor blocks save until every non-terminal
    output is connected.
 3. Publish. XML-curl serves only the Published version; saving a Draft does not
@@ -31,9 +31,9 @@ operation:
 4. Use **Draft vs Published** in the Dialplans list or the semantic editor
    toolbar before publishing.
 5. Roll back by repointing the Published version. The Draft is preserved.
-6. Watch the ESL listener for live call and agent events. The console currently
-   polls live state every five seconds; subscribing the console to the socket
-   stream is deferred.
+6. Watch the ESL listener for live call, agent and registration events. The
+   console applies Socket.IO events in place and polls every 30 seconds only
+   while the socket is disconnected.
 
 The call-setup path is cached in Redis. Publish, rollback, enable/disable,
 settings, Tenant, extension, queue and gateway changes invalidate the current

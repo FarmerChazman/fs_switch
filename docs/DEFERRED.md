@@ -5,39 +5,53 @@ item into a plan when it becomes the next slice.
 
 ## Blocked on a live bench
 
-- Run `bench --site ... migrate` and smoke-test the default Tenant patch,
-  tenant-scoped counts, publish, rollback, versions, diff and the route
-  simulator.
-- Replay a captured XML-curl POST with the cache cold, warm and MariaDB down.
+- Run `bench --site ... migrate` and smoke-test the default Tenant, Tenant role
+  patch, membership role sync, permission hooks and tenant-scoped counts.
+- Replay a captured XML-curl POST with the cache cold, warm and MariaDB down,
+  including a domain-only directory request and a context-only dialplan request.
+- Verify Socket.IO authentication, namespace `/<site>`, CORS, session cookies
+  and the public socket URL/port in a browser.
 - Lab-test generated semantic XML in FreeSWITCH: menu, timeout, loop, queue
   transfer and variable persistence across transfers.
 - Visually QA the semantic canvas, editor and list diff drawers,
-  publish/rollback, versions drawer, route simulator, tenant fields and reload
-  warnings.
+  publish/rollback, versions drawer, route simulator, Tenant selector, Tenants
+  panel, role-aware navigation, live events and reload warnings.
+- Verify live Tenant isolation: a Supervisor in one Tenant must not see or act
+  on another Tenant's channels, agents or registrations.
 
 ## Next slices
 
-- Tenant UI, domain/context mapping and tenant-scoped role access.
-- ESL realtime fan-out to replace polling as the primary live-state path.
+- Agent self-service page for the caller's own extension and softphone
+  credentials.
 - Call logs, voicemail and missed-call records.
 - Embedded softphone, presence and screen pop.
 - Carrier templates, failover and LCR/rate decks.
 - Media library, TTS/ASR and AI-agent nodes.
-- Role-based console access for agent, supervisor and administrator.
+- Per-Tenant uniqueness for extension numbers, queue names, gateway names and
+  Flow titles.
+- Import/export of dialplan graphs.
 
 ## Known limitations
 
 - The route simulator does not evaluate native FreeSWITCH time fields (`wday`,
   `hour`, `minute-of-day`); use `${strftime(...)}` or a `set` variable.
-- Single-tenant alpha: tenant fields exist and call-setup documents are filtered
-  by tenant, but every domain and context resolves to tenant `default`.
-- Tenant fields are fixed after creation, but tenant-scoped create permissions
-  are not enforced yet. A user who can create a document can choose another
-  Tenant until tenant-scoped roles land.
 - Extension numbers, queue names, gateway names and Flow titles are globally
-  unique; per-tenant uniqueness is deferred until the tenant UI.
+  unique. A multi-Tenant deployment cannot reuse `1001` or `sales` across
+  Tenants yet.
+- Tenant roles are projected after commit. A user may need to reload the console
+  after a membership change before the new role is visible.
+- Role projection is additive at the Frappe role level; row-level hooks are what
+  separate Tenants. A user who is an Admin in one Tenant and an Agent in another
+  keeps `FS Switch Admin`, but only sees Admin rows in the first Tenant.
 - Semantic flow catch-all protection is not validated yet.
 - Extension name and destination pattern are not stored in the published
   snapshot; the diff shows them through the XML diff.
-- The console polls live state every five seconds. The ESL listener publishes
-  realtime events, but the console does not subscribe to them yet.
+- The socket path is verified in code and by the frontend build, but not yet
+  against a live Frappe Socket.IO server.
+- Live fan-out resolves the Tenant's recipient users per event. Cache the
+  recipient list if FreeSWITCH event volume becomes high.
+- `callcenter.conf` is a global FreeSWITCH configuration request. Unless the
+  XML-curl request carries a context, `serve_callcenter()` serves the default
+  Tenant's queues. Multi-Tenant queue hosting needs a context-aware request, a
+  global callcenter document, or one FreeSWITCH per Tenant; this is not settled
+  or lab-tested yet.

@@ -25,10 +25,11 @@ violate the no-second-backend invariant.
    `fs_switch:xml:current:<kind>:<tenant>:<name>`. A hit performs no database
    query and no compilation.
 2. **The key carries tenant and routing label.** `<kind>` is `dialplan`,
-   `directory` or `callcenter`; `<name>` is the context or domain. The
-   single-tenant alpha has an FS Tenant DocType and resolves every label to the
-   configured default Tenant. The default is cached in Redis. Domain/context
-   mapping changes `resolve_tenant()`, not the handler or key shape.
+   `directory` or `callcenter`; `<name>` is the context or domain. A cached
+   routing map of enabled Tenants resolves a SIP domain or context to its
+   Tenant. If both labels are supplied and disagree, context wins; unknown
+   labels fall back to the configured default Tenant. The map is cached in
+   Redis and invalidated after commit.
 3. **Last-known-good is a separate key with no expiry.**
    `fs_switch:xml:last-known-good:<kind>:<tenant>:<name>` is written after every
    build that produced a document. A build that yields no document (for example
@@ -68,7 +69,7 @@ violate the no-second-backend invariant.
 - Publish, rollback and enable/disable are the only operations that change what
   is served, and they are explicit.
 - Tenant scoping is in place on documents and cache keys; domain/context mapping
-  can be added without changing the handler contract.
+  changes only the resolver, not the handler or key shape.
 
 ### Negative / risks
 

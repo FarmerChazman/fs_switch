@@ -29,12 +29,25 @@
   removed and changed steps and connections, plus a unified XML diff. Canvas
   positions and edge ids are ignored. The diff is read-only and available from
   the Dialplans list and the semantic editor toolbar.
-- Tenant-ready data model: a default Tenant, tenant fields on Flows, extensions,
-  queues and gateways, and tenant-filtered directory, dialplan and callcenter
-  documents. The alpha resolves every domain and context to `default`.
+- Tenant model and UI: a default Tenant, tenant fields on Flows, extensions,
+  queues and gateways, a top-bar Tenant selector, a Tenants panel, and
+  tenant-filtered directory, dialplan and callcenter documents.
+- Domain/context mapping: each Tenant owns one SIP domain and one default
+  context. Directory requests resolve by domain; dialplan and callcenter requests
+  resolve by context. Unknown labels fall back to the configured default Tenant.
+- Tenant-scoped roles: `Admin`, `Supervisor` and `Agent` memberships project onto
+  `FS Switch Admin`, `FS Switch Supervisor` and `FS Switch Agent`; row-level
+  permission hooks restrict each role to its Tenants. System Manager is the
+  global override. A migration creates the roles and reconciles memberships; the
+  default Tenant cannot be disabled or deleted.
+- Socket.IO live updates: the ESL listener publishes call, agent and
+  registration events with Tenant metadata to the owning Tenant's Admins and
+  Supervisors plus System Managers; the console applies them directly and keeps
+  a 30-second snapshot poll only while disconnected.
 - Published XML, version history and tenant scope are server-managed. A normal
   save cannot inject `published_*` fields or move a document to another Tenant;
-  the served dialplan is filtered by `published_tenant`.
+  the served dialplan is filtered by `published_tenant`. A Flow context must
+  match its Tenant's default context.
 - Product brief and architecture decision records for the control-plane,
   semantic-flow and multi-tenant direction.
 - Public documentation set: install and feature README, docs index, operations

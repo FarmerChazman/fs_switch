@@ -10,7 +10,7 @@ FS Switch is the Frappe-native control plane that makes FreeSWITCH usable by
 telecom administrators, supervisors and agents without hiding FreeSWITCH from
 the engineers who operate it.
 
-It is a visual, real-time, tenant-ready call-control product:
+It is a visual, real-time, tenant-scoped call-control product:
 
 - configuration lives in Frappe, not in hand-edited XML;
 - call flows are designed as intent-level graphs;
@@ -91,10 +91,12 @@ decks and carrier quality ranking are a later subsystem.
 
 Organisations, domains, contexts, DIDs, extensions, ring groups and voicemail.
 
-The first release is single-organisation in the UI. The backend already carries
-tenant scope on Flows, extensions, queues and gateways, creates a default
-Tenant, and filters every call-setup document by tenant. Domain/context mapping
-and the tenant selector are the next slice.
+The console now has a Tenant selector and a Tenants panel. Each Tenant owns one
+SIP domain and one default context; directory requests resolve by domain and
+dialplan/callcenter requests resolve by context. Tenant membership projects onto
+Admin, Supervisor and Agent roles, and row-level hooks restrict configuration
+and live operations to the right Tenants. A user may belong to more than one
+Tenant; the active Tenant is a UI choice, not a permission bypass.
 
 ### 5.3 Logic layer
 
@@ -109,8 +111,9 @@ drawing tool.
 Channels, registrations, queues, agents, call-path highlighting, wallboards and
 supervisor actions.
 
-The current ESL listener already publishes events. The console should consume
-them directly and keep polling as a fallback.
+The ESL listener publishes call, agent and registration events with Tenant
+metadata. The console consumes them over Socket.IO and keeps a 30-second
+snapshot poll as a disconnected fallback.
 
 ### 5.5 Endpoint layer
 
@@ -146,7 +149,7 @@ In scope:
 
 Out of scope for this milestone:
 
-- tenant UI;
+- per-Tenant uniqueness for extensions, queues, gateways and Flow titles;
 - LCR;
 - media transcoding, TTS and ASR;
 - supervisor listen/whisper/barge;
@@ -178,17 +181,17 @@ For the product:
 | **0** | Foundation | Product brief, ADRs, semantic schema v1, compiler and tests. |
 | **1** | Semantic editor | Node palette, property drawer, ports, validation panel, XML preview. |
 | **2** | Safe publishing | Draft/published versions, rollback, call-setup cache, last-known-good, reload, route simulator and Draft-versus-Published diff are in place. |
-| **3** | Tenant layer | Default Tenant, tenant fields on Flows, extensions, queues and gateways, and tenant-filtered call-setup documents are in place; tenant UI and domain/context mapping remain. |
+| **3** | Tenant layer | Tenant UI, domain/context mapping, membership roles and row-level Tenant isolation are in place. |
 | **4** | Carrier layer | Gateway templates, failover and LCR/rate decks. |
-| **5** | Live workspace | Event-driven channels, queues, wallboard and supervisor actions. |
+| **5** | Live workspace | Socket.IO call, agent and registration events, Tenant-filtered live state and supervisor actions. |
 | **6** | Endpoint layer | Embedded softphone, presence, screen pop and call controls. |
 | **7** | Media and AI | Prompt library, transcoding, TTS, ASR and AI-agent nodes. |
 
 ## 9. Decisions and assumptions
 
-- **Single organisation first, tenant-ready model.** The first UI can hide the
-  tenant selector, but documents and XML-curl requests must be able to resolve a
-  tenant later.
+- **Tenant-scoped by default.** Every configuration document and live row
+  resolves to a Tenant. The console selects one active Tenant at a time; System
+  Manager can switch across all of them.
 - **Semantic graph is canonical.** Raw FreeSWITCH application graphs remain an
   advanced/import format, not the primary product model.
 - **State-machine compilation.** Each semantic node compiles to a named

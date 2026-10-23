@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
@@ -21,6 +21,8 @@ const props = defineProps({
   columns: { type: Array, required: true },
   fields: { type: Array, required: true },
   isAdmin: Boolean,
+  tenant: { type: String, default: '' },
+  tenants: { type: Array, default: () => [] },
   notify: { type: Function, required: true },
 })
 
@@ -34,7 +36,10 @@ const saving = ref(false)
 function emptyForm() {
   const result = {}
   for (const field of props.fields) {
-    result[field.field] = field.default ?? (field.type === 'checkbox' ? 0 : '')
+    result[field.field] =
+      field.type === 'tenant'
+        ? props.tenant || field.default || ''
+        : field.default ?? (field.type === 'checkbox' ? 0 : '')
   }
   return result
 }
@@ -42,7 +47,9 @@ function emptyForm() {
 async function load() {
   loading.value = true
   try {
-    rows.value = await api.list(props.doctype, { order_by: 'modified desc' })
+    const params = { order_by: 'modified desc' }
+    if (props.tenant) params.tenant = props.tenant
+    rows.value = await api.list(props.doctype, params)
   } catch (error) {
     props.notify(error.message, 'error')
   } finally {
@@ -61,6 +68,9 @@ async function openEdit(row) {
     const doc = await api.get(props.doctype, row.name)
     editing.value = row.name
     form.value = { ...emptyForm(), ...doc }
+    for (const field of props.fields) {
+      if (field.type === 'password') form.value[field.field] = ''
+    }
     dialog.value = true
   } catch (error) {
     props.notify(error.message, 'error')
@@ -69,20 +79,20 @@ async function openEdit(row) {
 
 async function save() {
   for (const field of props.fields) {
+    if (field.type === 'password' && editing.value) continue
     if (field.required && !String(form.value[field.field] ?? '').trim()) {
       props.notify(`${field.label} is required.`, 'error')
       return
     }
   }
 
-  const payload = { ...form.value }
+  const payload = {}
   for (const field of props.fields) {
-    if (field.type === 'password' && editing.value && !payload[field.field]) {
-      delete payload[field.field]
-    }
-    if (field.type === 'number' && payload[field.field] !== null && payload[field.field] !== '') {
-      payload[field.field] = Number(payload[field.field])
-    }
+    if (!Object.prototype.hasOwnProperty.call(form.value, field.field)) continue
+    const value = form.value[field.field]
+    if (field.type === 'password' && editing.value && !value) continue
+    payload[field.field] =
+      field.type === 'number' && value !== null && value !== '' ? Number(value) : value
   }
 
   saving.value = true
@@ -133,6 +143,7 @@ function displayValue(row, column) {
 }
 
 onMounted(load)
+watch(() => props.tenant, load)
 defineExpose({ load })
 </script>
 
@@ -230,6 +241,16 @@ defineExpose({ load })
             :id="`f-${field.field}`"
             v-model="form[field.field]"
             rows="3"
+          />
+          <Select
+            v-else-if="field.type === 'tenant'"
+            :id="`f-${field.field}`"
+            v-model="form[field.field]"
+            :options="tenants"
+            option-label="tenant_name"
+            option-value="tenant"
+            :disabled="Boolean(editing)"
+            placeholder="Tenant"
           />
           <Select
             v-else-if="field.type === 'select'"

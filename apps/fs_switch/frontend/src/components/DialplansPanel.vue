@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -13,6 +13,9 @@ import FlowDiffDrawer from './FlowDiffDrawer.vue'
 
 const props = defineProps({
   isAdmin: Boolean,
+  tenant: { type: String, default: '' },
+  tenantContext: { type: String, default: 'default' },
+  tenants: { type: Array, default: () => [] },
   notify: { type: Function, required: true },
 })
 
@@ -34,9 +37,11 @@ async function load() {
   try {
     rows.value = await api.list('FS Dialplan', {
       order_by: 'priority asc',
+      ...(props.tenant ? { tenant: props.tenant } : {}),
       fields: JSON.stringify([
         'name',
         'title',
+        'tenant',
         'graph_format',
         'context',
         'extension_name',
@@ -57,7 +62,8 @@ async function load() {
 function newSemanticFlow() {
   editorDoc.value = {
     title: '',
-    context: 'default',
+    tenant: props.tenant || 'default',
+    context: props.tenantContext || 'default',
     extension_name: '',
     destination_number: '^1000$',
     priority: 10,
@@ -71,7 +77,8 @@ function newSemanticFlow() {
 function newDialplan() {
   editorDoc.value = {
     title: '',
-    context: 'default',
+    tenant: props.tenant || 'default',
+    context: props.tenantContext || 'default',
     extension_name: '',
     destination_number: '^1000$',
     priority: 10,
@@ -177,6 +184,7 @@ async function rollback(row) {
 }
 
 onMounted(load)
+watch(() => props.tenant, load)
 </script>
 
 <template>
@@ -186,6 +194,9 @@ onMounted(load)
     :doc="editorDoc"
     :notify="notify"
     :is-admin="isAdmin"
+    :tenant="tenant"
+    :tenant-context="tenantContext"
+    :tenants="tenants"
     @saved="saved"
     @close="closeEditor"
   />
@@ -223,6 +234,7 @@ onMounted(load)
           </div>
         </template>
         <Column field="title" header="Title" sortable />
+        <Column field="tenant" header="Tenant" sortable />
         <Column field="publish_status" header="Publish" style="width: 150px">
           <template #body="{ data }">
             <Tag

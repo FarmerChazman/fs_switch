@@ -327,9 +327,14 @@ The xml-curl call-setup path serves the whole document from the Redis cache in
 `call_setup.py`, keyed by tenant and context. It never compiles on the request
 path and reads only `published_xml`, `published_context`, `published_priority`
 and `published_tenant` when the cache is cold. Draft graph fields are ignored.
-Every served document is filtered by tenant. The alpha resolves every domain and
-context to the `default` Tenant; domain/context mapping is a later slice. A
-failed publish leaves the previous Published version in place; that is the
+Every served document is filtered by tenant. A directory request resolves its
+Tenant by SIP domain; a dialplan or `callcenter.conf` request resolves by
+context. If both are supplied and disagree, context wins. Unknown labels fall
+back to the configured default Tenant. A Flow's context must match its Tenant's
+default context, so a published Flow cannot be stranded under a context that
+resolves to another Tenant.
+
+A failed publish leaves the previous Published version in place; that is the
 last-known-good XML. A failed rebuild serves the last-known-good cache entry,
 and with none the handler returns FreeSWITCH's not-found document.
 
@@ -374,9 +379,8 @@ Do not let the frontend invent XML. The registry and compiler are the contract.
 - No holiday calendar node; use `time` with FreeSWITCH condition fields.
 - No `menu` option labels in the XML; labels are UI metadata.
 - No media library or TTS/ASR nodes yet.
-- The alpha is single-tenant: tenant fields and tenant-filtered call-setup
-  documents exist, but every domain and context resolves to `default`. Tenant
-  UI and domain/context mapping are later.
+- Extension numbers, queue names, gateway names and Flow titles are globally
+  unique. Per-Tenant uniqueness is not implemented yet.
 - No explicit catch-all-protection check yet.
 
 These are deliberate next steps, not hidden behavior.

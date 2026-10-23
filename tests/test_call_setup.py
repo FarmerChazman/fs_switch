@@ -255,10 +255,11 @@ class DialplanHandlerTest(unittest.TestCase):
 
 
 class RecordingFrappe:
-    def __init__(self, default_tenant="default"):
+    def __init__(self, default_tenant="default", tenants=None):
         self.calls = []
         self.cache = FakeCache()
         self.default_tenant = default_tenant
+        self.tenants = tenants or []
 
     def get_single(self, doctype):
         return SimpleNamespace(
@@ -272,6 +273,8 @@ class RecordingFrappe:
 
     def get_all(self, doctype, **kwargs):
         self.calls.append((doctype, kwargs))
+        if doctype == "FS Tenant":
+            return self.tenants
         return []
 
     def log_error(self, title=None, message=None):
@@ -287,8 +290,50 @@ class TenantScopeTest(unittest.TestCase):
     def tearDown(self):
         call_setup._frappe = self.original_frappe
 
-    def test_resolve_tenant_is_default_in_the_alpha(self):
+    def test_resolve_tenant_falls_back_to_the_default(self):
         self.assertEqual(resolve_tenant(domain="acme.example", context="sales"), "default")
+
+    def test_resolve_tenant_uses_domain_and_context_mappings(self):
+        self.fake.tenants = [
+            SimpleNamespace(
+                name="default",
+                enabled=1,
+                sip_domain="localhost",
+                default_context="default",
+            ),
+            SimpleNamespace(
+                name="acme",
+                enabled=1,
+                sip_domain="acme.example",
+                default_context="sales",
+            ),
+        ]
+        self.assertEqual(resolve_tenant(domain="ACME.EXAMPLE:5060"), "acme")
+        self.assertEqual(resolve_tenant(context="SALES"), "acme")
+        self.assertEqual(resolve_tenant(domain="unknown.example"), "default")
+
+    def test_tenant_map_cache_is_invalidated(self):
+        self.fake.tenants = [
+            SimpleNamespace(
+                name="acme",
+                enabled=1,
+                sip_domain="acme.example",
+                default_context="acme",
+            )
+        ]
+        self.assertEqual(resolve_tenant(domain="acme.example"), "acme")
+        self.fake.tenants = [
+            SimpleNamespace(
+                name="beta",
+                enabled=1,
+                sip_domain="beta.example",
+                default_context="beta",
+            )
+        ]
+        self.assertEqual(resolve_tenant(domain="acme.example"), "acme")
+        call_setup.invalidate_tenant_map()
+        self.assertEqual(resolve_tenant(domain="acme.example"), "default")
+        self.assertEqual(resolve_tenant(domain="beta.example"), "beta")
 
     def test_resolve_tenant_uses_the_configured_default_and_caches_it(self):
         self.fake.default_tenant = "acme"

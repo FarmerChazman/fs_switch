@@ -6,7 +6,7 @@ import os
 import frappe
 
 from fs_switch.publish import publish_flow
-from fs_switch.tenants import DEFAULT_TENANT, ensure_default_tenant
+from fs_switch.tenants import DEFAULT_TENANT, ensure_default_tenant, ensure_tenant_roles
 
 
 def configure_from_env():
@@ -46,8 +46,9 @@ def configure_from_env():
 
 
 def after_install():
-	ensure_default_tenant()
 	configure_from_env()
+	ensure_default_tenant()
+	ensure_tenant_roles()
 	seed_demo_dialplan()
 	frappe.db.commit()
 
@@ -89,12 +90,13 @@ def seed_demo_dialplan():
 		],
 	}
 
+	settings = frappe.get_single("FS Switch Settings")
 	doc = frappe.get_doc(
 		{
 			"doctype": "FS Dialplan",
 			"title": title,
-			"tenant": DEFAULT_TENANT,
-			"context": "default",
+			"tenant": settings.default_tenant or DEFAULT_TENANT,
+			"context": settings.default_context or "default",
 			"extension_name": "demo_inbound",
 			"destination_number": "^1000$",
 			"priority": 10,

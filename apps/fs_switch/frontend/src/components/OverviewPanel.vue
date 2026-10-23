@@ -6,6 +6,8 @@ const props = defineProps({
   bootstrap: { type: Object, default: null },
   live: { type: Object, default: null },
   isAdmin: Boolean,
+  canWrite: Boolean,
+  canSupervise: Boolean,
   navigate: { type: Function, default: null },
 })
 
@@ -24,25 +26,25 @@ function go(key) {
         <span class="fs-stat-label">Extensions</span>
         <span class="fs-stat-value">{{ counts().extensions || 0 }}</span>
         <span class="fs-stat-note">Enabled SIP endpoints</span>
-        <Button label="Manage" text size="small" @click="go('extensions')" />
+        <Button v-if="canWrite || canSupervise" label="Manage" text size="small" @click="go('extensions')" />
       </div>
       <div class="fs-card fs-stat">
         <span class="fs-stat-label">Gateways</span>
         <span class="fs-stat-value">{{ counts().gateways || 0 }}</span>
         <span class="fs-stat-note">Carrier connections</span>
-        <Button label="Manage" text size="small" @click="go('gateways')" />
+        <Button v-if="canWrite" label="Manage" text size="small" @click="go('gateways')" />
       </div>
       <div class="fs-card fs-stat">
         <span class="fs-stat-label">Queues</span>
         <span class="fs-stat-value">{{ counts().queues || 0 }}</span>
         <span class="fs-stat-note">Call-center ring groups</span>
-        <Button label="Manage" text size="small" @click="go('queues')" />
+        <Button v-if="canWrite" label="Manage" text size="small" @click="go('queues')" />
       </div>
       <div class="fs-card fs-stat">
         <span class="fs-stat-label">Dialplans</span>
         <span class="fs-stat-value">{{ counts().dialplans || 0 }}</span>
         <span class="fs-stat-note">Enabled call flows</span>
-        <Button label="Manage" text size="small" @click="go('dialplans')" />
+        <Button v-if="canWrite" label="Manage" text size="small" @click="go('dialplans')" />
       </div>
     </div>
 
@@ -54,11 +56,13 @@ function go(key) {
             <span>Read from FreeSWITCH over ESL</span>
           </div>
           <Tag
+            v-if="canSupervise"
             :value="live?.ok ? 'Connected' : 'Offline'"
             :severity="live?.ok ? 'success' : 'danger'"
           />
+          <Tag v-else value="Restricted" severity="secondary" />
         </div>
-        <div class="fs-grid fs-grid-2">
+        <div v-if="canSupervise" class="fs-grid fs-grid-2">
           <div class="fs-stat">
             <span class="fs-stat-label">Channels</span>
             <span class="fs-stat-value">{{ liveCount('channels') }}</span>
@@ -76,9 +80,12 @@ function go(key) {
             <span class="fs-stat-value">{{ liveCount('queues') }}</span>
           </div>
         </div>
-        <p v-if="live && !live.ok" class="fs-mono">{{ live.error }}</p>
+        <p v-if="!canSupervise" class="fs-stat-note">
+          Live state is available to Supervisors and Tenant Admins.
+        </p>
+        <p v-else-if="live && !live.ok" class="fs-mono">{{ live.error }}</p>
         <p v-else class="fs-stat-note">
-          {{ isAdmin ? 'Live data refreshes every five seconds.' : 'Sign in as a System Manager to see live data.' }}
+          Live state arrives over Frappe realtime; a slow snapshot poll is the fallback.
         </p>
       </div>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
@@ -15,6 +15,8 @@ import { api } from '../api'
 
 const props = defineProps({
   isAdmin: Boolean,
+  tenant: { type: String, default: '' },
+  tenants: { type: Array, default: () => [] },
   notify: { type: Function, required: true },
 })
 
@@ -40,6 +42,7 @@ const backupOptions = ref([])
 function blankQueue() {
   return {
     queue_name: '',
+    tenant: props.tenant || '',
     display_name: '',
     enabled: 1,
     strategy: 'longest-idle-agent',
@@ -54,9 +57,10 @@ function blankQueue() {
 async function load() {
   loading.value = true
   try {
+    const tenantFilter = props.tenant ? { tenant: props.tenant } : {}
     const [queueRows, extensionRows] = await Promise.all([
-      api.list('FS Queue', { order_by: 'queue_name asc' }),
-      api.list('FS Extension', { order_by: 'extension asc' }),
+      api.list('FS Queue', { order_by: 'queue_name asc', ...tenantFilter }),
+      api.list('FS Extension', { order_by: 'extension asc', ...tenantFilter }),
     ])
     // A list query does not include child tables, so load the queue docs to
     // show an accurate agent count in the table.
@@ -129,7 +133,15 @@ async function save() {
     return
   }
   const payload = {
-    ...form.value,
+    queue_name: form.value.queue_name.trim(),
+    tenant: form.value.tenant,
+    display_name: form.value.display_name || '',
+    enabled: form.value.enabled ? 1 : 0,
+    strategy: form.value.strategy || 'longest-idle-agent',
+    max_wait_seconds: Number(form.value.max_wait_seconds || 180),
+    music_on_hold: form.value.music_on_hold || 'local_stream://moh',
+    backup_queue: form.value.backup_queue || '',
+    description: form.value.description || '',
     agents: (form.value.agents || [])
       .filter((agent) => agent.extension)
       .map((agent, index) => ({
@@ -173,6 +185,7 @@ function agentCount(row) {
 }
 
 onMounted(load)
+watch(() => props.tenant, load)
 </script>
 
 <template>
@@ -191,6 +204,7 @@ onMounted(load)
           <div class="fs-empty">No queues yet. Create one, then add extensions as agents.</div>
         </template>
         <Column field="queue_name" header="Queue" sortable />
+        <Column field="tenant" header="Tenant" sortable />
         <Column field="display_name" header="Name" sortable />
         <Column field="strategy" header="Strategy" sortable />
         <Column header="Agents">
@@ -221,6 +235,18 @@ onMounted(load)
       :style="{ width: '760px', maxWidth: '95vw' }"
     >
       <div class="fs-form-grid">
+        <div class="fs-field">
+          <label for="queue-tenant">Tenant</label>
+          <Select
+            id="queue-tenant"
+            v-model="form.tenant"
+            :options="tenants"
+            option-label="tenant_name"
+            option-value="tenant"
+            :disabled="Boolean(editing)"
+            placeholder="Tenant"
+          />
+        </div>
         <div class="fs-field">
           <label for="queue-name">Queue name</label>
           <InputText id="queue-name" v-model="form.queue_name" placeholder="support" :disabled="Boolean(editing)" />

@@ -3,17 +3,21 @@ import CrudPanel from './CrudPanel.vue'
 
 defineProps({
   isAdmin: Boolean,
+  tenant: { type: String, default: '' },
+  tenants: { type: Array, default: () => [] },
   notify: { type: Function, required: true },
 })
 
 const columns = [
   { field: 'gateway_name', header: 'Gateway' },
+  { field: 'tenant', header: 'Tenant' },
   { field: 'proxy', header: 'Proxy' },
   { field: 'register', header: 'Register', type: 'bool' },
   { field: 'enabled', header: 'Enabled', type: 'bool' },
 ]
 
 const fields = [
+  { field: 'tenant', label: 'Tenant', type: 'tenant', required: true },
   { field: 'gateway_name', label: 'Gateway name', required: true, placeholder: 'carrier' },
   { field: 'proxy', label: 'Proxy', required: true, placeholder: 'sip.example.com:5060' },
   { field: 'register', label: 'Register', type: 'checkbox', default: 1, checkboxLabel: 'Register with the carrier' },
@@ -37,6 +41,8 @@ const fields = [
     :columns="columns"
     :fields="fields"
     :is-admin="isAdmin"
+    :tenant="tenant"
+    :tenants="tenants"
     :notify="notify"
   />
 </template>

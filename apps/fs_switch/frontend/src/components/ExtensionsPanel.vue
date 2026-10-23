@@ -3,11 +3,14 @@ import CrudPanel from './CrudPanel.vue'
 
 defineProps({
   isAdmin: Boolean,
+  tenant: { type: String, default: '' },
+  tenants: { type: Array, default: () => [] },
   notify: { type: Function, required: true },
 })
 
 const columns = [
   { field: 'extension', header: 'Extension' },
+  { field: 'tenant', header: 'Tenant' },
   { field: 'display_name', header: 'Name' },
   { field: 'user', header: 'User' },
   { field: 'agent_status', header: 'Agent status', type: 'status' },
@@ -15,11 +18,12 @@ const columns = [
 ]
 
 const fields = [
+  { field: 'tenant', label: 'Tenant', type: 'tenant', required: true },
   { field: 'extension', label: 'Extension', required: true, placeholder: '1001' },
   { field: 'display_name', label: 'Display name', placeholder: 'Front desk' },
   { field: 'user', label: 'Frappe user', placeholder: 'agent@example.com' },
   { field: 'sip_password', label: 'SIP password', type: 'password', required: true },
-  { field: 'context', label: 'Context', help: 'Leave blank to use the site default.' },
+  { field: 'context', label: 'Context', help: 'Leave blank to use the Tenant context.' },
   { field: 'caller_id_name', label: 'Caller ID name' },
   { field: 'caller_id_number', label: 'Caller ID number' },
   { field: 'outbound_caller_id', label: 'Outbound caller ID' },
@@ -50,6 +54,8 @@ const fields = [
     :columns="columns"
     :fields="fields"
     :is-admin="isAdmin"
+    :tenant="tenant"
+    :tenants="tenants"
     :notify="notify"
   />
 </template>

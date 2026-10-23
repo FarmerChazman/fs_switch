@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 from types import SimpleNamespace
+from urllib.parse import urlparse
 
 import frappe
 
@@ -11,6 +12,7 @@ from fs_switch.call_setup import (
 	NOT_FOUND_DOCUMENT,
 	expected_secret_hash,
 	invalidate_dialplan,
+	resolve_tenant,
 	secret_hash,
 	serve_callcenter,
 	serve_dialplan,
@@ -22,9 +24,23 @@ from fs_switch.esl import ESLError
 from fs_switch.esl import live_data as read_live_data
 from fs_switch.esl import run_action as execute_action
 from fs_switch.flow import SCHEMA_VERSION, FlowError, node_catalog, validate_flow
+from fs_switch.permissions import (
+	require_supervisor,
+	require_system_manager,
+	require_tenant_read,
+	require_tenant_write,
+)
 from fs_switch.publish import publish_flow, rollback_flow
 from fs_switch.simulator import simulate_flow
-from fs_switch.tenants import DEFAULT_TENANT
+from fs_switch.tenants import (
+	DEFAULT_TENANT,
+	accessible_tenants,
+	can_supervise_tenant,
+	can_write_tenant,
+	is_system_manager,
+	role_for_tenant,
+	tenant_or_default,
+)
 
 SETTINGS_DOCTYPE = "FS Switch Settings"
 
@@ -82,26 +98,160 @@ def _serve(handler, *args) -> str:
 		return NOT_FOUND_DOCUMENT
 
 
-def _require_admin():
+def _require_authenticated():
 	if frappe.session.user == "Guest":
 		frappe.throw("Please log in.", frappe.PermissionError)
-	if "System Manager" not in frappe.get_roles():
-		frappe.throw("FS Switch is limited to System Managers.", frappe.PermissionError)
+
+
+def _require_admin():
+	"""Backward-compatible name for a System Manager-only action."""
+	require_system_manager("FS Switch settings are limited to System Managers.")
+
+
+def _require_config_access():
+	"""Require at least one Tenant role that can read configuration."""
+	_require_authenticated()
+	if is_system_manager():
+		return
+	if any(row["role"] in ("Admin", "Supervisor") for row in accessible_tenants()):
+		return
+	frappe.throw("You need an Admin or Supervisor role to view configuration.", frappe.PermissionError)
+
+
+def _socketio_url() -> str:
+	"""Return the browser-facing Socket.IO origin.
+
+	In a bench the socket server usually runs on ``socketio_port`` (9000) while
+	the web server runs on 8000. A reverse proxy can expose both on one origin,
+	in which case ``fs_switch_socketio_url`` can be set in site_config.
+	"""
+	configured = frappe.conf.get("fs_switch_socketio_url")
+	if configured:
+		return str(configured).rstrip("/")
+	port = frappe.conf.get("socketio_port")
+	base = frappe.utils.get_url()
+	if port and str(port) not in ("0", ""):
+		parsed = urlparse(base)
+		host = parsed.hostname or "localhost"
+		if ":" in host and not host.startswith("["):
+			host = f"[{host}]"
+		return f"{parsed.scheme}://{host}:{int(port)}"
+	return base.rstrip("/")
+
+
+def _active_tenant(requested=None):
+	"""Pick the requested Tenant if the caller may read it, else the first one."""
+	tenants = accessible_tenants()
+	names = {row["tenant"] for row in tenants}
+	if requested:
+		requested = tenant_or_default(requested)
+		if requested not in names:
+			frappe.throw("You do not have access to this Tenant.", frappe.PermissionError)
+		return requested
+	configured = tenant_or_default(
+		frappe.db.get_single_value(SETTINGS_DOCTYPE, "default_tenant")
+	)
+	if configured in names:
+		return configured
+	return next(iter(sorted(names)), None)
+
+
+def _live_context(value) -> str:
+	text = str(value or "").strip()
+	if "@" in text:
+		return text.rsplit("@", 1)[1]
+	return text
+
+
+def _annotate_live(data):
+	"""Add Tenant labels to live rows so the console can filter and route them."""
+	if not isinstance(data, dict):
+		return data
+	for channel in data.get("channels") or []:
+		channel["tenant"] = resolve_tenant(context=channel.get("context"))
+	for agent in data.get("agents") or []:
+		context = _live_context(
+			agent.get("queue") or agent.get("agent") or agent.get("name") or ""
+		)
+		agent["tenant"] = resolve_tenant(context=context) if context else resolve_tenant()
+	for queue in data.get("queues") or []:
+		context = _live_context(queue.get("name") or "")
+		queue["tenant"] = resolve_tenant(context=context) if context else resolve_tenant()
+	for registration in data.get("registrations") or []:
+		registration["tenant"] = resolve_tenant(domain=registration.get("realm"))
+	return data
+
+
+def _filter_live(data, tenant=None):
+	"""Filter an annotated live snapshot to one Tenant or the caller's Tenants."""
+	tenant = tenant_or_default(tenant) if tenant else None
+	allowed = {
+		row["tenant"]
+		for row in accessible_tenants()
+		if row["role"] in ("System Manager", "Admin", "Supervisor")
+	}
+	if is_system_manager() and not tenant:
+		return data
+	allowed = allowed if tenant is None else {tenant}
+
+	def keep(rows):
+		return [row for row in rows or [] if row.get("tenant") in allowed]
+
+	return {
+		**(data or {}),
+		"channels": keep((data or {}).get("channels")),
+		"agents": keep((data or {}).get("agents")),
+		"queues": keep((data or {}).get("queues")),
+		"registrations": keep((data or {}).get("registrations")),
+	}
+
+
+def _assert_live_target_tenant(tenant, uuid=None, agent=None):
+	"""Best-effort Tenant check for a live action.
+
+	The channel or agent must already be visible in the caller's Tenant. A
+	target that is not present is left to FreeSWITCH to reject; the point is to
+	stop a supervisor in one Tenant from acting on another Tenant's live rows.
+	"""
+	if not tenant or is_system_manager():
+		return
+	if uuid:
+		data = read_live_data()
+		row = next(
+			(channel for channel in data.get("channels") or [] if channel.get("uuid") == uuid),
+			None,
+		)
+		if row and resolve_tenant(context=row.get("context")) != tenant:
+			frappe.throw("That channel belongs to another Tenant.", frappe.PermissionError)
+	if agent:
+		context = _live_context(agent)
+		if context and resolve_tenant(context=context) != tenant:
+			frappe.throw("That agent belongs to another Tenant.", frappe.PermissionError)
 
 
 @frappe.whitelist()
-def get_bootstrap():
+def get_bootstrap(tenant: str | None = None):
 	"""Small, secret-free payload for the console shell."""
-	if frappe.session.user == "Guest":
-		frappe.throw("Please log in.", frappe.PermissionError)
+	_require_authenticated()
 	settings = _settings()
-	tenant = settings.default_tenant or DEFAULT_TENANT
-	return {
-		"user": frappe.session.user,
-		"full_name": frappe.utils.get_fullname(frappe.session.user),
-		"roles": frappe.get_roles(),
-		"is_admin": "System Manager" in frappe.get_roles(),
-		"settings": {
+	tenants = accessible_tenants()
+	active = _active_tenant(tenant)
+	role = role_for_tenant(frappe.session.user, active) if active else None
+	can_write = bool(active and can_write_tenant(frappe.session.user, active))
+	can_supervise = bool(active and can_supervise_tenant(frappe.session.user, active))
+	counts = {"extensions": 0, "gateways": 0, "queues": 0, "dialplans": 0}
+	if active and role in ("System Manager", "Admin", "Supervisor"):
+		counts = {
+			"extensions": frappe.db.count(
+				"FS Extension", {"enabled": 1, "tenant": active}
+			),
+			"gateways": frappe.db.count("FS Gateway", {"enabled": 1, "tenant": active}),
+			"queues": frappe.db.count("FS Queue", {"enabled": 1, "tenant": active}),
+			"dialplans": frappe.db.count("FS Dialplan", {"enabled": 1, "tenant": active}),
+		}
+	settings_payload = {}
+	if role in ("System Manager", "Admin", "Supervisor"):
+		settings_payload = {
 			"default_tenant": settings.default_tenant or DEFAULT_TENANT,
 			"main_did": settings.main_did,
 			"default_context": settings.default_context,
@@ -118,15 +268,24 @@ def get_bootstrap():
 			"default_gateway": settings.default_gateway,
 			"outbound_caller_id": settings.outbound_caller_id,
 			"recording_enabled": settings.recording_enabled,
+		}
+	return {
+		"user": frappe.session.user,
+		"full_name": frappe.utils.get_fullname(frappe.session.user),
+		"roles": frappe.get_roles(),
+		"is_admin": is_system_manager(),
+		"can_manage_tenants": is_system_manager(),
+		"can_write": can_write,
+		"can_supervise": can_supervise,
+		"active_tenant": active,
+		"active_role": role,
+		"tenants": tenants,
+		"settings": settings_payload,
+		"realtime": {
+			"url": _socketio_url(),
+			"site": frappe.local.site,
 		},
-		"counts": {
-			"extensions": frappe.db.count(
-				"FS Extension", {"enabled": 1, "tenant": tenant}
-			),
-			"gateways": frappe.db.count("FS Gateway", {"enabled": 1, "tenant": tenant}),
-			"queues": frappe.db.count("FS Queue", {"enabled": 1, "tenant": tenant}),
-			"dialplans": frappe.db.count("FS Dialplan", {"enabled": 1, "tenant": tenant}),
-		},
+		"counts": counts,
 		"version": "0.1.0",
 	}
 
@@ -203,14 +362,29 @@ def save_settings(
 
 
 @frappe.whitelist()
-def get_live_data():
-	_require_admin()
-	return read_live_data()
+def get_live_data(tenant: str | None = None):
+	tenant = (tenant or "").strip() or None
+	require_supervisor(tenant)
+	return _filter_live(_annotate_live(read_live_data()), tenant)
 
 
 @frappe.whitelist(methods=["POST"])
-def run_live_action(action, uuid=None, destination=None, context=None, agent=None, status=None):
-	_require_admin()
+def run_live_action(
+	action,
+	uuid=None,
+	destination=None,
+	context=None,
+	agent=None,
+	status=None,
+	tenant=None,
+):
+	tenant = (tenant or "").strip() or None
+	if action == "reload":
+		require_system_manager("Only a System Manager can reload FreeSWITCH.")
+	require_supervisor(tenant)
+	if not tenant and not is_system_manager():
+		frappe.throw("Select a Tenant before running a live action.", frappe.PermissionError)
+	_assert_live_target_tenant(tenant, uuid=uuid, agent=agent)
 	try:
 		reply = execute_action(
 			action,
@@ -233,8 +407,7 @@ def validate_semantic_flow(graph: str | None = None):
 	visible before a save or publish. The response is intentionally a list of
 	human-readable messages rather than a single exception.
 	"""
-	if frappe.session.user == "Guest":
-		frappe.throw("Please log in.", frappe.PermissionError)
+	_require_config_access()
 	if not graph:
 		return {"valid": False, "errors": ["The flow is empty."]}
 	try:
@@ -253,9 +426,10 @@ def preview_dialplan(
 	context: str | None = None,
 	destination_number: str | None = None,
 ):
-	_require_admin()
+	_require_config_access()
 	if name:
 		doc = frappe.get_doc("FS Dialplan", name)
+		require_tenant_read(doc.tenant)
 		return {"xml": compile_extension(doc)}
 	if graph:
 		plan = SimpleNamespace(
@@ -288,11 +462,11 @@ def simulate_route(
 	saving or publishing. When ``name`` is supplied, the saved draft and its
 	destination pattern are used instead.
 	"""
-	if frappe.session.user == "Guest":
-		frappe.throw("Please log in.", frappe.PermissionError)
+	_require_config_access()
 	pattern = (destination_number or "").strip()
 	if name:
 		doc = frappe.get_doc("FS Dialplan", name)
+		require_tenant_read(doc.tenant)
 		if str(doc.graph_format or "raw").strip().lower() != "semantic":
 			frappe.throw("The route simulator supports semantic Flows only.")
 		graph = graph or doc.graph
@@ -330,8 +504,9 @@ def _reload_xml() -> dict:
 @frappe.whitelist(methods=["POST"])
 def publish_dialplan(name: str, note: str | None = None):
 	"""Compile the saved draft and make it the published Flow version."""
-	_require_admin()
+	_require_authenticated()
 	doc = frappe.get_doc("FS Dialplan", name)
+	require_tenant_write(doc.tenant)
 	try:
 		version = publish_flow(doc, note=note, published_by=frappe.session.user)
 	except ValueError as exc:
@@ -349,8 +524,9 @@ def publish_dialplan(name: str, note: str | None = None):
 @frappe.whitelist(methods=["POST"])
 def rollback_dialplan(name: str, version: int):
 	"""Serve an earlier published version without changing the draft."""
-	_require_admin()
+	_require_authenticated()
 	doc = frappe.get_doc("FS Dialplan", name)
+	require_tenant_write(doc.tenant)
 	try:
 		target = rollback_flow(doc, version, published_by=frappe.session.user)
 	except ValueError as exc:
@@ -368,8 +544,9 @@ def rollback_dialplan(name: str, version: int):
 @frappe.whitelist()
 def get_dialplan_versions(name: str):
 	"""List published versions for the rollback drawer."""
-	_require_admin()
+	_require_authenticated()
 	doc = frappe.get_doc("FS Dialplan", name)
+	require_tenant_read(doc.tenant)
 	rows = sorted(
 		doc.versions or [],
 		key=lambda row: int(row.version or 0),
@@ -398,14 +575,14 @@ def get_dialplan_versions(name: str):
 @frappe.whitelist()
 def get_dialplan_diff(name: str):
 	"""Compare the saved Draft with the currently Published version."""
-	if frappe.session.user == "Guest":
-		frappe.throw("Please log in.", frappe.PermissionError)
+	_require_authenticated()
 	doc = frappe.get_doc("FS Dialplan", name)
+	require_tenant_read(doc.tenant)
 	return diff_flow(doc)
 
 
 @frappe.whitelist()
-def get_softphone_config():
+def get_softphone_config(tenant: str | None = None):
 	"""Return the caller's own SIP credentials for a browser softphone.
 
 	Only the owner of the extension receives the password, over the authenticated
@@ -413,17 +590,19 @@ def get_softphone_config():
 	"""
 	if frappe.session.user == "Guest":
 		return {"enabled": 0}
-	extension = frappe.db.get_value(
-		"FS Extension", {"user": frappe.session.user, "enabled": 1}, "name"
-	)
+	filters = {"user": frappe.session.user, "enabled": 1}
+	if tenant:
+		filters["tenant"] = tenant_or_default(tenant)
+	extension = frappe.db.get_value("FS Extension", filters, "name")
 	if not extension:
 		return {"enabled": 0}
 	doc = frappe.get_doc("FS Extension", extension)
 	settings = _settings()
+	domain = frappe.db.get_value("FS Tenant", doc.tenant, "sip_domain") or settings.sip_domain or ""
 	return {
 		"enabled": 1,
 		"ws_url": settings.webrtc_url or "",
-		"domain": settings.sip_domain or "",
+		"domain": domain,
 		"extension": doc.extension,
 		"password": doc.get_password("sip_password", raise_exception=False) or "",
 		"display_name": doc.display_name

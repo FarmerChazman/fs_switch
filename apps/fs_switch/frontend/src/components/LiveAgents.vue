@@ -11,6 +11,8 @@ import { api } from '../api'
 const props = defineProps({
   live: { type: Object, default: null },
   isAdmin: Boolean,
+  canSupervise: Boolean,
+  tenant: { type: String, default: '' },
   notify: { type: Function, required: true },
   refreshLive: { type: Function, required: true },
 })
@@ -34,7 +36,11 @@ watch(
 async function setStatus(row) {
   busy.value = row.name
   try {
-    await api.action('agent_status', { agent: row.name, status: row._status })
+    await api.action('agent_status', {
+      agent: row.name,
+      status: row._status,
+      tenant: props.tenant,
+    })
     props.notify(`Agent ${row.name} set to ${row._status}.`)
     await props.refreshLive(true)
   } catch (error) {
@@ -81,7 +87,7 @@ function severity(status) {
           </template>
         </Column>
         <Column field="state" header="State" style="width: 140px" />
-        <Column v-if="isAdmin" header="Set status" style="width: 270px">
+        <Column v-if="canSupervise" header="Set status" style="width: 270px">
           <template #body="{ data }">
             <div style="display: flex; gap: 6px">
               <Select

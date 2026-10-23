@@ -20,7 +20,6 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 
 import { api, parseGraph } from '../api'
-import { stripPublishState } from '../flow'
 import FSNode from './FSNode.vue'
 import SemanticFlowEditor from './SemanticFlowEditor.vue'
 
@@ -28,6 +27,9 @@ const props = defineProps({
   doc: { type: Object, required: true },
   notify: { type: Function, required: true },
   isAdmin: Boolean,
+  tenant: { type: String, default: '' },
+  tenantContext: { type: String, default: 'default' },
+  tenants: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['saved', 'close'])
 
@@ -89,10 +91,17 @@ function defaultGraph() {
   }
 }
 
+function selectTenant(tenant) {
+  form.value.tenant = tenant
+  const row = (props.tenants || []).find((item) => item.tenant === tenant)
+  if (row?.default_context) form.value.context = row.default_context
+}
+
 function hydrate(doc) {
   form.value = {
     title: '',
-    context: 'default',
+    tenant: props.tenant || '',
+    context: props.tenantContext || 'default',
     extension_name: '',
     destination_number: '^1000$',
     priority: 10,
@@ -158,10 +167,19 @@ async function save() {
   }
   saving.value = true
   try {
-    const payload = stripPublishState({
-      ...form.value,
+    const payload = {
+      tenant: form.value.tenant,
+      title: String(form.value.title || '').trim(),
+      context: String(form.value.context || 'default').trim() || 'default',
+      extension_name: String(form.value.extension_name || '').trim(),
+      destination_number:
+        String(form.value.destination_number || '.*').trim() || '.*',
+      priority: Number(form.value.priority || 0),
+      enabled: form.value.enabled ? 1 : 0,
+      description: String(form.value.description || ''),
+      graph_format: 'raw',
       graph: graphPayload(),
-    })
+    }
     const saved = form.value.name
       ? await api.update('FS Dialplan', form.value.name, payload)
       : await api.create('FS Dialplan', payload)
@@ -238,6 +256,9 @@ onMounted(() => hydrate(props.doc))
     :doc="form"
     :notify="notify"
     :is-admin="isAdmin"
+    :tenant="tenant"
+    :tenant-context="tenantContext"
+    :tenants="tenants"
     @saved="onSemanticSaved"
     @close="emit('close')"
   />
@@ -361,8 +382,22 @@ onMounted(() => hydrate(props.doc))
                 <InputText id="dp-title" v-model="form.title" />
               </div>
               <div class="fs-field">
+                <label for="dp-tenant">Tenant</label>
+                <Select
+                  id="dp-tenant"
+                  :model-value="form.tenant"
+                  :options="tenants"
+                  option-label="tenant_name"
+                  option-value="tenant"
+                  :disabled="!isNew"
+                  placeholder="Tenant"
+                  @update:model-value="selectTenant"
+                />
+              </div>
+              <div class="fs-field">
                 <label for="dp-context">Context</label>
-                <InputText id="dp-context" v-model="form.context" />
+                <InputText id="dp-context" v-model="form.context" disabled />
+                <small>Matches the Tenant's default context.</small>
               </div>
               <div class="fs-field">
                 <label for="dp-ext">Extension name</label>
