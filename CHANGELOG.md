@@ -33,8 +33,11 @@
   queues and gateways, a top-bar Tenant selector, a Tenants panel, and
   tenant-filtered directory, dialplan and callcenter documents.
 - Domain/context mapping: each Tenant owns one SIP domain and one default
-  context. Directory requests resolve by domain; dialplan and callcenter requests
-  resolve by context. Unknown labels fall back to the configured default Tenant.
+  context. Directory requests resolve by domain; dialplan requests resolve by
+  context. Unknown labels fall back to the configured default Tenant.
+- `callcenter.conf` is built once for every enabled Tenant, with queue and agent
+  names carrying the Tenant context, because FreeSWITCH requests that
+  configuration globally.
 - Tenant-scoped roles: `Admin`, `Supervisor` and `Agent` memberships project onto
   `FS Switch Admin`, `FS Switch Supervisor` and `FS Switch Agent`; row-level
   permission hooks restrict each role to its Tenants. System Manager is the

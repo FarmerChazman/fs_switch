@@ -138,7 +138,8 @@ Publish, rollback, enable/disable, settings, Tenant, extension, queue and
 gateway changes invalidate the current key after commit. Handlers never
 invalidate. Last-known-good has no expiry and is not overwritten by an empty
 build. If no last-known-good exists, the handler returns FreeSWITCH's not-found
-document.
+document. The `callcenter.conf` document is cached under the global key
+`callcenter:all:all` because FreeSWITCH requests it once for the instance.
 
 The served dialplan is filtered by `published_tenant`, not the Draft tenant. A
 normal save cannot change `published_*` fields or version history; only publish

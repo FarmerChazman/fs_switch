@@ -50,8 +50,3 @@ item into a plan when it becomes the next slice.
   against a live Frappe Socket.IO server.
 - Live fan-out resolves the Tenant's recipient users per event. Cache the
   recipient list if FreeSWITCH event volume becomes high.
-- `callcenter.conf` is a global FreeSWITCH configuration request. Unless the
-  XML-curl request carries a context, `serve_callcenter()` serves the default
-  Tenant's queues. Multi-Tenant queue hosting needs a context-aware request, a
-  global callcenter document, or one FreeSWITCH per Tenant; this is not settled
-  or lab-tested yet.

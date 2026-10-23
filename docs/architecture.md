@@ -49,7 +49,8 @@ FreeSWITCH blocks on the directory, dialplan and `callcenter.conf` handlers
 while routing a call, so a slow handler drops calls. `call_setup.py` caches the
 whole compiled document in Redis under a key that carries the tenant and the
 routing label (domain or context). A cache hit performs no database query and
-no compilation.
+no compilation. The `callcenter.conf` entry uses the global key `all/all`
+because FreeSWITCH requests that configuration once for the whole instance.
 
 The shared-secret hash is cached in Redis as well. With the cache warm,
 FreeSWITCH can authenticate and receive last-known-good XML while MariaDB is
@@ -59,8 +60,8 @@ closed.
 Each cached document also has a **Last-known-good** entry. Invalidation removes
 only the current entry; last-known-good survives so a database or compiler
 failure serves the most recent document that built successfully. The
-`callcenter.conf` request is global in FreeSWITCH; without a context it serves
-the default Tenant, which is a known multi-Tenant limitation. With no
+`callcenter.conf` request is global in FreeSWITCH, so that document is built
+for every enabled Tenant and queue/agent names carry the Tenant context. With no
 last-known-good the handler returns FreeSWITCH's not-found document instead of
 an empty one. Handlers never write and never invalidate; the control plane
 invalidates after commit from publish, rollback, enable/disable, settings and

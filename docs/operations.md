@@ -53,6 +53,9 @@ fs_switch:xml:current:<kind>:<tenant>:<name>
 fs_switch:xml:last-known-good:<kind>:<tenant>:<name>
 ```
 
+`callcenter.conf` uses `<tenant>=all` and `<name>=all` because it is a global
+document.
+
 - Current entries expire after 24 hours.
 - Last-known-good entries have no expiry and are not overwritten by an empty
   build.
@@ -75,8 +78,9 @@ among enabled Tenants.
 
 - A directory request supplies a domain; the handler resolves the Tenant by
   domain.
-- A dialplan or `callcenter.conf` request supplies a context; the handler
-  resolves the Tenant by context.
+- A dialplan request supplies a context; the handler resolves the Tenant by
+  context.
+- `callcenter.conf` is global, so its document includes every enabled Tenant.
 - If both labels are supplied and disagree, the context wins.
 - An unknown label falls back to the Tenant in **FS Switch Settings >
   default_tenant**. The default Tenant cannot be disabled or deleted. On a fresh
@@ -87,9 +91,10 @@ A Flow context must match its Tenant's default context. Otherwise the compiled
 Flow would be stored under a Tenant that the request cannot reach.
 
 FreeSWITCH's `callcenter.conf` configuration request is global rather than
-context-scoped. Without a context, `serve_callcenter()` uses the default Tenant.
-Verify queue hosting in the lab before relying on multi-Tenant queues; see
-[`DEFERRED.md`](DEFERRED.md).
+context-scoped, so `serve_callcenter()` builds one document for every enabled
+Tenant. Queue and agent names include the Tenant context, so queues from
+different Tenants do not collide. Lab-test multi-Tenant queue hosting before
+production use.
 
 ## ESL listener and Socket.IO
 

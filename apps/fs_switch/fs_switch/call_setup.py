@@ -261,12 +261,15 @@ def serve_directory(domain=None) -> str:
 
 
 def serve_callcenter(context=None) -> str:
-	"""Return the callcenter.conf document from cache."""
+	"""Return the global callcenter.conf document from cache.
+
+	FreeSWITCH's configuration request for ``callcenter.conf`` is global rather
+	than context-scoped, so one document carries every enabled Tenant's queues
+	and agents. Queue and agent names include the Tenant context.
+	"""
 	frappe = _frappe()
-	context = _text(context) or "default"
-	tenant = resolve_tenant(context=context)
-	document = _document(frappe, "callcenter", tenant, context)
-	return document.serve(lambda: _build_callcenter(frappe, tenant))
+	document = _document(frappe, "callcenter", "all", "all")
+	return document.serve(lambda: _build_callcenter(frappe))
 
 
 def invalidate(kind: str):
@@ -457,70 +460,103 @@ def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 	)
 
 
-def _build_callcenter(frappe, tenant: str) -> str:
+def _build_callcenter(frappe, tenant: str | None = None) -> str:
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
-	tenant = tenant_or_default(tenant)
-	context = _tenant_context(frappe, tenant, settings)
 	hold = settings.hold_music_file or "local_stream://moh"
-	queues, tiers, agents = [], [], []
-	used_extensions = set()
-
-	for row in frappe.get_all(
-		"FS Queue",
-		filters={"enabled": 1, "tenant": tenant},
-		fields=["name"],
-		order_by="queue_name asc",
-	):
-		queue = frappe.get_doc("FS Queue", row.name)
-		members = [(row.extension, row.level or 1, row.position or 0) for row in queue.agents or []]
-		if queue.backup_queue:
-			backup = frappe.get_doc("FS Queue", queue.backup_queue)
-			if tenant_or_default(getattr(backup, "tenant", None)) == tenant:
-				members += [
-					(row.extension, 2, row.position or 0)
-					for row in backup.agents or []
-					if row.extension not in {member[0] for member in members}
-				]
-		if not members:
-			continue
-		queue_name = f"{queue.queue_name}@{context}"
-		queues.append(
-			f"<queue name={_attr(queue_name)}>"
-			f'<param name="strategy" value={_attr(queue.strategy or "longest-idle-agent")}/>'
-			f'<param name="moh-sound" value={_attr(queue.music_on_hold or hold)}/>'
-			f'<param name="max-wait-time" value={_attr(int(queue.max_wait_seconds or 180))}/>'
-			'<param name="max-wait-time-with-no-agent" value="30"/>'
-			'<param name="discard-abandoned-after" value="60"/>'
-			'<param name="abandoned-resume-allowed" value="false"/>'
-			'<param name="tier-rules-apply" value="false"/>'
-			'<param name="tier-rule-no-agent-no-wait" value="true"/>'
-			"</queue>"
+	if tenant:
+		tenants = [(tenant_or_default(tenant), _tenant_context(frappe, tenant, settings))]
+	else:
+		rows = frappe.get_all(
+			"FS Tenant",
+			filters={"enabled": 1},
+			fields=["name", "default_context"],
+			order_by="name asc",
 		)
-		for extension, level, position in members:
-			tiers.append(
-				f'<tier agent={_attr(f"{extension}@{context}")} '
-				f'queue={_attr(queue_name)} level="{int(level)}" position="{int(position)}"/>'
+		tenants = [
+			(
+				row.name,
+				_text(getattr(row, "default_context", None))
+				or _text(getattr(settings, "default_context", None))
+				or "default",
 			)
-			used_extensions.add(extension)
+			for row in rows
+			if getattr(row, "name", None)
+		]
+		if not tenants:
+			tenants = [
+				(
+					tenant_or_default(getattr(settings, "default_tenant", None)),
+					_text(getattr(settings, "default_context", None)) or "default",
+				)
+			]
 
-	extension_rows = (
-		frappe.get_all(
-			"FS Extension",
-			filters={"enabled": 1, "tenant": tenant, "name": ["in", sorted(used_extensions)]},
-			fields=["name", "extension", "agent_status"],
-			order_by="extension asc",
+	queues, tiers, agents = [], [], []
+	for tenant_name, context in tenants:
+		domain = _tenant_domain(frappe, tenant_name, settings) or "$${domain}"
+		used_extensions = set()
+		for row in frappe.get_all(
+			"FS Queue",
+			filters={"enabled": 1, "tenant": tenant_name},
+			fields=["name"],
+			order_by="queue_name asc",
+		):
+			queue = frappe.get_doc("FS Queue", row.name)
+			members = [
+				(agent.extension, agent.level or 1, agent.position or 0)
+				for agent in queue.agents or []
+			]
+			if queue.backup_queue:
+				backup = frappe.get_doc("FS Queue", queue.backup_queue)
+				if tenant_or_default(getattr(backup, "tenant", None)) == tenant_name:
+					members += [
+						(agent.extension, 2, agent.position or 0)
+						for agent in backup.agents or []
+						if agent.extension not in {member[0] for member in members}
+					]
+			if not members:
+				continue
+			queue_name = f"{queue.queue_name}@{context}"
+			queues.append(
+				f"<queue name={_attr(queue_name)}>"
+				f'<param name="strategy" value={_attr(queue.strategy or "longest-idle-agent")}/>'
+				f'<param name="moh-sound" value={_attr(queue.music_on_hold or hold)}/>'
+				f'<param name="max-wait-time" value={_attr(int(queue.max_wait_seconds or 180))}/>'
+				'<param name="max-wait-time-with-no-agent" value="30"/>'
+				'<param name="discard-abandoned-after" value="60"/>'
+				'<param name="abandoned-resume-allowed" value="false"/>'
+				'<param name="tier-rules-apply" value="false"/>'
+				'<param name="tier-rule-no-agent-no-wait" value="true"/>'
+				"</queue>"
+			)
+			for extension, level, position in members:
+				tiers.append(
+					f'<tier agent={_attr(f"{extension}@{context}")} '
+					f'queue={_attr(queue_name)} level="{int(level)}" position="{int(position)}"/>'
+				)
+				used_extensions.add(extension)
+
+		extension_rows = (
+			frappe.get_all(
+				"FS Extension",
+				filters={
+					"enabled": 1,
+					"tenant": tenant_name,
+					"name": ["in", sorted(used_extensions)],
+				},
+				fields=["name", "extension", "agent_status"],
+				order_by="extension asc",
+			)
+			if used_extensions
+			else []
 		)
-		if used_extensions
-		else []
-	)
-	for row in extension_rows:
-		status = row.agent_status if row.agent_status in AGENT_STATUSES else "Logged Out"
-		agents.append(
-			f'<agent name={_attr(f"{row.extension}@{context}")} type="callback" '
-			f'contact={_attr(f"[leg_timeout=30]user/{row.extension}@$${{domain}}")} '
-			f'status={_attr(status)} max-no-answer="0" wrap-up-time="30" '
-			'reject-delay-time="10" busy-delay-time="0" no-answer-delay-time="10"/>'
-		)
+		for row in extension_rows:
+			status = row.agent_status if row.agent_status in AGENT_STATUSES else "Logged Out"
+			agents.append(
+				f'<agent name={_attr(f"{row.extension}@{context}")} type="callback" '
+				f'contact={_attr(f"[leg_timeout=30]user/{row.extension}@{domain}")} '
+				f'status={_attr(status)} max-no-answer="0" wrap-up-time="30" '
+				'reject-delay-time="10" busy-delay-time="0" no-answer-delay-time="10"/>'
+			)
 
 	return (
 		'<document type="freeswitch/xml">'

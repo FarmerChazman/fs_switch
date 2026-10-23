@@ -29,7 +29,8 @@ violate the no-second-backend invariant.
    routing map of enabled Tenants resolves a SIP domain or context to its
    Tenant. If both labels are supplied and disagree, context wins; unknown
    labels fall back to the configured default Tenant. The map is cached in
-   Redis and invalidated after commit.
+   Redis and invalidated after commit. The global `callcenter.conf` document
+   uses the fixed key `all/all`.
 3. **Last-known-good is a separate key with no expiry.**
    `fs_switch:xml:last-known-good:<kind>:<tenant>:<name>` is written after every
    build that produced a document. A build that yields no document (for example

@@ -260,6 +260,9 @@ class RecordingFrappe:
         self.cache = FakeCache()
         self.default_tenant = default_tenant
         self.tenants = tenants or []
+        self.queues = {}
+        self.queue_docs = {}
+        self.extensions = {}
 
     def get_single(self, doctype):
         return SimpleNamespace(
@@ -275,7 +278,24 @@ class RecordingFrappe:
         self.calls.append((doctype, kwargs))
         if doctype == "FS Tenant":
             return self.tenants
+        if doctype == "FS Queue":
+            tenant = kwargs.get("filters", {}).get("tenant")
+            return [SimpleNamespace(name=name) for name in self.queues.get(tenant, [])]
+        if doctype == "FS Extension":
+            tenant = kwargs.get("filters", {}).get("tenant")
+            names = kwargs.get("filters", {}).get("name", ["in", []])[1]
+            return [
+                row
+                for row in self.extensions.get(tenant, [])
+                if not names or row.name in names
+            ]
         return []
+
+    def get_doc(self, doctype, name):
+        self.calls.append((doctype, {"name": name}))
+        if doctype == "FS Queue":
+            return self.queue_docs[name]
+        raise KeyError(name)
 
     def log_error(self, title=None, message=None):
         pass
@@ -357,6 +377,68 @@ class TenantScopeTest(unittest.TestCase):
         _build_callcenter(self.fake, "acme")
         self.assertEqual(self.fake.calls[0][0], "FS Queue")
         self.assertEqual(self.fake.calls[0][1]["filters"], {"enabled": 1, "tenant": "acme"})
+
+    def test_callcenter_builder_includes_every_enabled_tenant_by_default(self):
+        self.fake.tenants = [
+            SimpleNamespace(name="default", default_context="default"),
+            SimpleNamespace(name="acme", default_context="sales"),
+        ]
+        _build_callcenter(self.fake)
+        self.assertEqual(self.fake.calls[0][0], "FS Tenant")
+        queue_filters = [
+            call[1]["filters"]
+            for call in self.fake.calls
+            if call[0] == "FS Queue" and "filters" in call[1]
+        ]
+        self.assertEqual(
+            queue_filters,
+            [
+                {"enabled": 1, "tenant": "default"},
+                {"enabled": 1, "tenant": "acme"},
+            ],
+        )
+
+    def test_callcenter_document_contains_queues_and_agents_for_all_tenants(self):
+        self.fake.tenants = [
+            SimpleNamespace(name="default", default_context="default"),
+            SimpleNamespace(name="acme", default_context="sales"),
+        ]
+        self.fake.queues = {"default": ["support"], "acme": ["sales"]}
+        self.fake.queue_docs = {
+            "support": SimpleNamespace(
+                queue_name="support",
+                backup_queue="",
+                agents=[SimpleNamespace(extension="1001", level=1, position=1)],
+                strategy="longest-idle-agent",
+                music_on_hold="",
+                max_wait_seconds=180,
+            ),
+            "sales": SimpleNamespace(
+                queue_name="sales",
+                backup_queue="",
+                agents=[SimpleNamespace(extension="2001", level=1, position=1)],
+                strategy="longest-idle-agent",
+                music_on_hold="",
+                max_wait_seconds=180,
+            ),
+        }
+        self.fake.extensions = {
+            "default": [
+                SimpleNamespace(name="1001", extension="1001", agent_status="Available")
+            ],
+            "acme": [
+                SimpleNamespace(name="2001", extension="2001", agent_status="On Break")
+            ],
+        }
+
+        xml = _build_callcenter(self.fake)
+
+        self.assertIn('<queue name="support@default">', xml)
+        self.assertIn('<queue name="sales@sales">', xml)
+        self.assertIn('<agent name="1001@default"', xml)
+        self.assertIn('<agent name="2001@sales"', xml)
+        self.assertIn('<tier agent="1001@default" queue="support@default"', xml)
+        self.assertIn('<tier agent="2001@sales" queue="sales@sales"', xml)
 
 
 if __name__ == "__main__":

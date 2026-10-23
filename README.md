@@ -256,9 +256,11 @@ each role to the Tenants where the user actually holds that membership. System
 Manager is the global override.
 
 The directory, dialplan and `callcenter.conf` handlers answer from a Redis
-cache keyed by tenant and context. The cache is invalidated after commit when a
-Flow is published, rolled back, enabled or disabled, or when settings,
-extensions or queues change. Each entry keeps a last-known-good copy, so a
+cache keyed by tenant and routing label. The callcenter document is global
+because FreeSWITCH requests it once for the instance; it contains every enabled
+Tenant's queues and agents. The cache is invalidated after commit when a Flow is
+published, rolled back, enabled or disabled, or when settings, extensions or
+queues change. Each entry keeps a last-known-good copy, so a
 database or compiler failure still serves the most recent good XML. With no
 last-known-good the handler returns FreeSWITCH's not-found document.
 

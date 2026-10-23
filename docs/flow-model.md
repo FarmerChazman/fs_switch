@@ -327,12 +327,13 @@ The xml-curl call-setup path serves the whole document from the Redis cache in
 `call_setup.py`, keyed by tenant and context. It never compiles on the request
 path and reads only `published_xml`, `published_context`, `published_priority`
 and `published_tenant` when the cache is cold. Draft graph fields are ignored.
-Every served document is filtered by tenant. A directory request resolves its
-Tenant by SIP domain; a dialplan or `callcenter.conf` request resolves by
-context. If both are supplied and disagree, context wins. Unknown labels fall
-back to the configured default Tenant. A Flow's context must match its Tenant's
-default context, so a published Flow cannot be stranded under a context that
-resolves to another Tenant.
+Every served document is scoped by Tenant. A directory request resolves its
+Tenant by SIP domain; a dialplan request resolves by context. If both are
+supplied and disagree, context wins. Unknown labels fall back to the configured
+default Tenant. A Flow's context must match its Tenant's default context, so a
+published Flow cannot be stranded under a context that resolves to another
+Tenant. `callcenter.conf` is the exception: FreeSWITCH requests it globally, so
+one document contains every enabled Tenant's queues and agents.
 
 A failed publish leaves the previous Published version in place; that is the
 last-known-good XML. A failed rebuild serves the last-known-good cache entry,

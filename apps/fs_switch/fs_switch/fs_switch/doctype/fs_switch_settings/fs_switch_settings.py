@@ -10,11 +10,13 @@ class FSSwitchSettings(Document):
 		self.default_tenant = tenant_or_default(self.default_tenant)
 		# On a fresh install the Tenant is created just after the settings are
 		# written. On an existing site the setting must point at a real Tenant.
-		if (
-			self.default_tenant
-			and not frappe.db.exists("FS Tenant", self.default_tenant)
-			and frappe.db.count("FS Tenant")
-		):
+		try:
+			tenant_count = frappe.db.count("FS Tenant")
+			tenant_exists = frappe.db.exists("FS Tenant", self.default_tenant)
+		except Exception:
+			tenant_count = 0
+			tenant_exists = False
+		if self.default_tenant and tenant_count and not tenant_exists:
 			frappe.throw(f"Default Tenant {self.default_tenant} does not exist.")
 
 	def on_update(self):
