@@ -251,8 +251,7 @@ These are implemented in code but not yet proven on a bench and real FreeSWITCH:
 ## Recommended next order
 
 1. **Live bench acceptance** — migrate, roles, permissions, Socket.IO, DID
-   DocType and XML-curl. This is currently blocked by the absence of a local
-   bench; the checklist is in [`operations.md`](operations.md).
+   DocType and XML-curl. The checklist is in [`ACCEPTANCE.md`](ACCEPTANCE.md).
 2. **Finish the Tenant layer** — broader Tenant settings and the naming
    migration needed for per-Tenant uniqueness.
 3. **Supervisor wallboard** — queue depth, hold metrics, call-path highlighting,

@@ -7,6 +7,7 @@ app_license = "AGPL-3.0"
 
 required_apps = []
 
+before_install = "fs_switch.setup.before_install"
 after_install = "fs_switch.setup.after_install"
 after_migrate = "fs_switch.tenants.after_migrate"
 

@@ -75,6 +75,8 @@ services:
       FS_SWITCH_SIP_DOMAIN: ${FS_SWITCH_SIP_DOMAIN:-localhost}
       FS_SWITCH_DEFAULT_CONTEXT: ${FS_SWITCH_DEFAULT_CONTEXT:-default}
       FS_SWITCH_MAIN_DID: ${FS_SWITCH_MAIN_DID:-1000}
+      RTP_START: ${FS_SWITCH_RTP_START:-16384}
+      RTP_END: ${FS_SWITCH_RTP_END:-16484}
       FS_SWITCH_TRUNK_PROXY: ${FS_SWITCH_TRUNK_PROXY:-}
       FS_SWITCH_TRUNK_USERNAME: ${FS_SWITCH_TRUNK_USERNAME:-}
       FS_SWITCH_TRUNK_PASSWORD: ${FS_SWITCH_TRUNK_PASSWORD:-}
@@ -87,7 +89,7 @@ services:
       - "5060:5060/tcp"
       - "5066:5066"       # browser WebRTC WebSocket (ws://localhost:5066)
       - "7443:7443"       # secure WebSocket (needs a trusted certificate)
-      - "16384-16484:16384-16484/udp"
+      - "${FS_SWITCH_RTP_START:-16384}-${FS_SWITCH_RTP_END:-16484}:${FS_SWITCH_RTP_START:-16384}-${FS_SWITCH_RTP_END:-16484}/udp"
     volumes:
       - fs-switch-tls:/etc/freeswitch/tls
 

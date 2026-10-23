@@ -13,6 +13,10 @@ the console and XML-curl endpoint are already reachable from FreeSWITCH.
 | XML-curl is reachable | Request the dialplan endpoint with the shared secret; see below. |
 | ESL listener is running | Check the service or `logs/esl-listener.log` in Docker. |
 
+If host RTP ports `16384-16484/udp` are already in use, set
+`FS_SWITCH_RTP_START` and `FS_SWITCH_RTP_END` to a free range before starting
+the stack.
+
 A minimal XML-curl check:
 
 ```bash

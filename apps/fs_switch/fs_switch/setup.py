@@ -45,6 +45,12 @@ def configure_from_env():
 	return settings
 
 
+def before_install():
+	# DocType permissions reference the app roles, so create them before the
+	# install migration validates permissions.
+	ensure_tenant_roles()
+
+
 def after_install():
 	configure_from_env()
 	ensure_default_tenant()

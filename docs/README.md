@@ -11,6 +11,7 @@ overview. This page is the map for the rest of the documentation.
 | [`../README.md`](../README.md) | You want to install FS Switch, understand the feature set or find the quick start. |
 | [`PRODUCT.md`](PRODUCT.md) | You need the product direction, personas and scope. |
 | [`STATUS.md`](STATUS.md) | You need the current build status against the original source documents. |
+| [`ACCEPTANCE.md`](ACCEPTANCE.md) | You are running the first live bench, permission, Socket.IO or XML-curl acceptance pass. |
 | [`architecture.md`](architecture.md) | You need the control-plane/data-plane boundaries, cache or live-event design. |
 | [`flow-model.md`](flow-model.md) | You are changing the Flow graph, node registry, compiler, simulator, publish lifecycle or diff. |
 | [`ui.md`](ui.md) | You are changing the console layout, semantic canvas, live views or publish/diff UI. |

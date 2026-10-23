@@ -66,6 +66,7 @@ flow schema and compiler are documented in
 - [`docs/README.md`](docs/README.md) — documentation index and operating notes
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — product direction and scope
 - [`docs/STATUS.md`](docs/STATUS.md) — current status against the original source documents
+- [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) — live bench, permissions, Socket.IO and XML-curl acceptance checklist
 - [`docs/architecture.md`](docs/architecture.md) — control-plane/data-plane design
 - [`docs/flow-model.md`](docs/flow-model.md) — Flow schema, compiler, simulator, publish and diff
 - [`docs/ui.md`](docs/ui.md) — console layout and editor behaviour

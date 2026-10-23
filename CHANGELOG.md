@@ -62,4 +62,6 @@
   semantic-flow and multi-tenant direction.
 - Public documentation set: install and feature README, docs index, operations
   guide, development guide, security policy and deferred-work list.
-- Docker Desktop development stack with Frappe and FreeSWITCH.
+- Docker Desktop development stack with Frappe and FreeSWITCH. The Frappe image
+  installs `redis-server` for bench init, and `FS_SWITCH_RTP_START` /
+  `FS_SWITCH_RTP_END` make the host RTP range configurable.
