@@ -5,6 +5,9 @@ import os
 
 import frappe
 
+from fs_switch.publish import publish_flow
+from fs_switch.tenants import DEFAULT_TENANT, ensure_default_tenant
+
 
 def configure_from_env():
 	"""Apply the values the container shares with FreeSWITCH.
@@ -13,6 +16,9 @@ def configure_from_env():
 	environment actually contains a value, so a manual install is not wiped.
 	"""
 	settings = frappe.get_single("FS Switch Settings")
+	settings.default_tenant = (
+		os.environ.get("FS_SWITCH_DEFAULT_TENANT") or settings.default_tenant or DEFAULT_TENANT
+	)
 	settings.main_did = os.environ.get("FS_SWITCH_MAIN_DID") or settings.main_did or "1000"
 	settings.default_context = (
 		os.environ.get("FS_SWITCH_DEFAULT_CONTEXT") or settings.default_context or "default"
@@ -40,6 +46,7 @@ def configure_from_env():
 
 
 def after_install():
+	ensure_default_tenant()
 	configure_from_env()
 	seed_demo_dialplan()
 	frappe.db.commit()
@@ -82,16 +89,20 @@ def seed_demo_dialplan():
 		],
 	}
 
-	frappe.get_doc(
+	doc = frappe.get_doc(
 		{
 			"doctype": "FS Dialplan",
 			"title": title,
+			"tenant": DEFAULT_TENANT,
 			"context": "default",
 			"extension_name": "demo_inbound",
 			"destination_number": "^1000$",
 			"priority": 10,
 			"enabled": 0,
+			"graph_format": "raw",
 			"description": "Disabled example. Enable it after setting the main DID and a greeting.",
 			"graph": json.dumps(graph, indent=2),
 		}
 	).insert(ignore_permissions=True)
+	publish_flow(doc, note="Seeded demo", published_by="Administrator")
+	doc.save(ignore_permissions=True)

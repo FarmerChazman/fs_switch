@@ -8,9 +8,11 @@ APP = Path(__file__).resolve().parents[1] / "apps" / "fs_switch"
 sys.path.insert(0, str(APP))
 
 from fs_switch.dialplan import (  # noqa: E402
+    NOT_FOUND_DOCUMENT,
     DialplanError,
     compile_dialplan,
     compile_extension,
+    compile_published_dialplan,
     inbound_pattern,
     ordered_nodes,
 )
@@ -98,6 +100,64 @@ class DialplanTest(unittest.TestCase):
         self.assertIn('extension name="fs_switch_internal"', xml)
         self.assertIn('context name="public"', xml)
         self.assertIn('application="transfer"', xml)
+
+    def test_compile_published_dialplan_uses_only_published_xml(self):
+        published = SimpleNamespace(
+            title="Published",
+            enabled=1,
+            published_context="default",
+            published_priority=10,
+            published_xml='    <extension name="published_only"><condition field="destination_number" expression="^1000$"/></extension>',
+            graph=graph([node("draft", "answer")], []),
+            graph_format="raw",
+            context="default",
+            priority=10,
+        )
+        settings = SimpleNamespace(
+            default_context="default",
+            main_did="",
+            allow_internal_calls=0,
+        )
+        xml = compile_published_dialplan([published], settings)
+        self.assertIn('extension name="published_only"', xml)
+        self.assertNotIn('extension name="draft"', xml)
+        self.assertNotIn("application=", xml)
+
+    def test_compile_published_dialplan_orders_by_published_priority(self):
+        def plan(title, priority):
+            return SimpleNamespace(
+                title=title,
+                enabled=1,
+                published_context="default",
+                published_priority=priority,
+                published_xml=f'    <extension name="{title}"/>',
+            )
+
+        settings = SimpleNamespace(
+            default_context="default",
+            main_did="",
+            allow_internal_calls=0,
+        )
+        xml = compile_published_dialplan([plan("later", 20), plan("earlier", 10)], settings)
+        self.assertLess(xml.index('extension name="earlier"'), xml.index('extension name="later"'))
+
+    def test_compile_published_dialplan_skips_enabled_without_published_xml(self):
+        plan = SimpleNamespace(
+            title="Draft only",
+            enabled=1,
+            published_context="default",
+            published_priority=10,
+            published_xml="",
+        )
+        settings = SimpleNamespace(
+            default_context="default",
+            main_did="",
+            allow_internal_calls=0,
+        )
+        self.assertEqual(
+            compile_published_dialplan([plan], settings),
+            NOT_FOUND_DOCUMENT,
+        )
 
 
 if __name__ == "__main__":

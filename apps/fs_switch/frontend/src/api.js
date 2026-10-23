@@ -49,6 +49,50 @@ export const api = {
   live: () => request('/api/method/fs_switch.api.get_live_data'),
   preview: (name) =>
     request(`/api/method/fs_switch.api.preview_dialplan?name=${encodeURIComponent(name)}`),
+  flowCatalog: () => request('/api/method/fs_switch.api.get_flow_catalog'),
+  validateFlow: (graph) =>
+    request('/api/method/fs_switch.api.validate_semantic_flow', {
+      method: 'POST',
+      body: JSON.stringify({ graph }),
+    }),
+  simulateRoute: (graph, options = {}) =>
+    request('/api/method/fs_switch.api.simulate_route', {
+      method: 'POST',
+      body: JSON.stringify({
+        graph,
+        destination: options.destination || '',
+        at: options.at || '',
+        digits: options.digits || '',
+        variables: options.variables || '',
+        destination_number: options.destinationNumber || '',
+        max_steps: options.maxSteps || 50,
+      }),
+    }),
+  previewGraph: (graph, options = {}) =>
+    request('/api/method/fs_switch.api.preview_dialplan', {
+      method: 'POST',
+      body: JSON.stringify({
+        graph,
+        graph_format: options.graphFormat || 'raw',
+        extension_name: options.extensionName || '',
+        context: options.context || '',
+        destination_number: options.destinationNumber || '',
+      }),
+    }),
+  publishFlow: (name, note = '') =>
+    request('/api/method/fs_switch.api.publish_dialplan', {
+      method: 'POST',
+      body: JSON.stringify({ name, note }),
+    }),
+  rollbackFlow: (name, version) =>
+    request('/api/method/fs_switch.api.rollback_dialplan', {
+      method: 'POST',
+      body: JSON.stringify({ name, version }),
+    }),
+  flowVersions: (name) =>
+    request(`/api/method/fs_switch.api.get_dialplan_versions?name=${encodeURIComponent(name)}`),
+  flowDiff: (name) =>
+    request(`/api/method/fs_switch.api.get_dialplan_diff?name=${encodeURIComponent(name)}`),
   action: (action, args = {}) =>
     request('/api/method/fs_switch.api.run_live_action', {
       method: 'POST',
@@ -77,9 +121,14 @@ export const api = {
 
 export function parseGraph(graph) {
   if (!graph) return { nodes: [], edges: [] }
-  if (typeof graph === 'object') return graph
+  if (typeof graph === 'object') {
+    return Array.isArray(graph) ? { nodes: [], edges: [] } : graph
+  }
   try {
-    return JSON.parse(graph)
+    const parsed = JSON.parse(graph)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : { nodes: [], edges: [] }
   } catch {
     return { nodes: [], edges: [] }
   }

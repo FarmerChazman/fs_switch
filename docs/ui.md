@@ -9,8 +9,9 @@ three-in-one interface:
 2. **Tabbed workspace** — the main panel. Selecting a tree item opens a
    workspace with tabs for settings, live status, table view, flow view and XML
    preview.
-3. **Visual dialplan** — a Vue Flow canvas inside the dialplan workspace. Nodes
-   are FreeSWITCH applications; clicking a node opens a PrimeVue property
+3. **Visual dialplan** — a Vue Flow canvas inside the dialplan workspace.
+   Semantic flows use intent-level nodes with typed output ports; raw dialplans
+   use FreeSWITCH application nodes. Clicking a node opens a PrimeVue property
    drawer.
 
 ## Navigation
@@ -54,6 +55,54 @@ Tabs:
 
 ## Dialplan workspace
 
+The dialplan list offers two creation paths:
+
+- **New semantic flow** — the default, intent-level editor.
+- **Raw dialplan** — the advanced FreeSWITCH application-chain editor.
+
+Semantic flows open in `SemanticFlowEditor.vue`; raw flows keep the original
+`FS Node` canvas. The list shows **Format** and **Publish** columns so an
+administrator can tell the graph type and serving state apart before opening a
+document. The Publish column shows `Draft` or `Published vN`.
+
+The list actions publish a saved Draft and open the published-version history.
+Rollback in that history repoints FreeSWITCH to an earlier Published version;
+the Draft is not overwritten. The Diff action opens **Draft vs Published**:
+settings, entry step, step and connection changes, and a unified XML diff. It is
+read-only and available to any signed-in user who can read the Flow.
+
+### Semantic flow editor
+
+Tabs:
+
+- **Flow** — Vue Flow canvas with a semantic palette and typed output ports.
+  `menu` exposes one port per configured digit plus a `timeout` port; `time`
+  exposes `match` and `no_match`. Drag from a port to connect steps. Click a
+  step to open the property drawer.
+- **Table** — the same steps and connections in editable grids, including the
+  entry step and delete controls.
+- **Simulate** — enter a destination, time and digits, then run the Draft
+  through the route simulator. The result lists each step, the output port it
+  took and a detail line; simulated steps are outlined on the Flow canvas.
+  Editing the graph clears the result.
+- **XML** — the draft compiled by the same compiler FreeSWITCH uses. This is a
+  preview; the Published XML is what xml-curl serves. The preview works before
+  the flow is saved.
+- **Settings** — context, extension name, destination pattern, priority,
+  enabled flag and entry step.
+
+Validation runs automatically while the flow changes and again before save.
+Every non-terminal output must be connected. Saving is blocked until the flow
+is valid. The entry extension matches the destination pattern and transfers
+into the flow; the remaining steps compile to deterministic named extensions.
+Saving stores the Draft; **Publish** compiles the saved Draft and makes it the
+served version. The toolbar's **Draft vs Published** action opens the same
+read-only diff as the list; it compares the saved Draft, so save first to include
+canvas edits. The stored graph and publish lifecycle are documented in
+[`flow-model.md`](flow-model.md).
+
+### Raw flow editor
+
 Tabs:
 
 - **Flow** — Vue Flow canvas with a custom `FS Node`. Each node has a label,
@@ -63,8 +112,9 @@ Tabs:
 - **Settings** — context, extension name, destination pattern, priority and
   enabled flag.
 
-The first release compiles a linear chain. The graph format already stores
-edges, so branching can be added without changing the document shape.
+The raw canvas compiles a linear application chain. It is retained as an escape
+hatch for senior engineers; it is not the default product model. Both editors
+show the Draft/Published tag and a Publish action in the toolbar.
 
 ## Live views
 

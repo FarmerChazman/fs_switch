@@ -4,16 +4,29 @@ from __future__ import annotations
 
 import hmac
 from types import SimpleNamespace
-from xml.sax.saxutils import quoteattr
 
 import frappe
 
-from fs_switch.dialplan import DialplanError, compile_dialplan, compile_extension
+from fs_switch.call_setup import (
+	NOT_FOUND_DOCUMENT,
+	expected_secret_hash,
+	invalidate_dialplan,
+	secret_hash,
+	serve_callcenter,
+	serve_dialplan,
+	serve_directory,
+)
+from fs_switch.dialplan import compile_extension
+from fs_switch.diff import diff_flow
+from fs_switch.esl import ESLError
 from fs_switch.esl import live_data as read_live_data
 from fs_switch.esl import run_action as execute_action
+from fs_switch.flow import SCHEMA_VERSION, FlowError, node_catalog, validate_flow
+from fs_switch.publish import publish_flow, rollback_flow
+from fs_switch.simulator import simulate_flow
+from fs_switch.tenants import DEFAULT_TENANT
 
 SETTINGS_DOCTYPE = "FS Switch Settings"
-AGENT_STATUSES = ("Logged Out", "Available", "On Break")
 
 
 def _settings():
@@ -21,9 +34,13 @@ def _settings():
 
 
 def _check_secret():
-	expected = _settings().get_password("xml_curl_secret", raise_exception=False) or ""
+	try:
+		expected = expected_secret_hash()
+	except Exception:
+		# Fail closed when neither Redis nor MariaDB can authenticate the call.
+		frappe.throw("Forbidden", frappe.PermissionError)
 	given = frappe.form_dict.get("secret") or ""
-	if not expected or not given or not hmac.compare_digest(given, expected):
+	if not expected or not given or not hmac.compare_digest(secret_hash(given), expected):
 		frappe.throw("Forbidden", frappe.PermissionError)
 
 
@@ -44,156 +61,25 @@ def xml_curl():
 	_check_secret()
 	section = frappe.form_dict.get("section")
 	if section == "directory":
-		_xml_response(_directory_xml(frappe.form_dict.get("domain")))
+		_xml_response(_serve(serve_directory, frappe.form_dict.get("domain")))
 	elif section == "dialplan":
-		_xml_response(_dialplan_xml())
+		_xml_response(_serve(serve_dialplan, frappe.form_dict.get("context")))
 	elif section == "configuration" and frappe.form_dict.get("key_value") == "callcenter.conf":
-		_xml_response(_callcenter_xml())
+		_xml_response(_serve(serve_callcenter, frappe.form_dict.get("context")))
 	else:
 		_empty()
 
 
-def _attr(value) -> str:
-	return quoteattr(str(value if value is not None else ""))
-
-
-def _directory_xml(domain: str | None) -> str:
-	settings = _settings()
-	users = []
-	for row in frappe.get_all(
-		"FS Extension",
-		filters={"enabled": 1},
-		fields=["name", "user", "display_name", "extension"],
-		order_by="extension asc",
-	):
-		doc = frappe.get_doc("FS Extension", row.name)
-		full_name = row.display_name
-		if not full_name and row.user:
-			full_name = frappe.db.get_value("User", row.user, "full_name")
-		context = doc.context or settings.default_context or "default"
-		users.append(
-			f"<user id={_attr(doc.extension)}>"
-			"<params>"
-			f'<param name="password" value={_attr(doc.get_password("sip_password"))}/>'
-			f'<param name="vm-password" value={_attr(doc.extension)}/>'
-			"</params>"
-			"<variables>"
-			f'<variable name="user_context" value={_attr(context)}/>'
-			f'<variable name="effective_caller_id_name" value={_attr(full_name or doc.extension)}/>'
-			f'<variable name="effective_caller_id_number" value={_attr(doc.caller_id_number or doc.extension)}/>'
-			"</variables></user>"
+def _serve(handler, *args) -> str:
+	"""Never let a handler error escape the call-setup path."""
+	try:
+		return handler(*args)
+	except Exception as exc:
+		frappe.log_error(
+			title="FS Switch xml-curl",
+			message=f"{getattr(handler, '__name__', handler)} failed: {exc}",
 		)
-
-	domain_name = domain or settings.sip_domain or "$${domain}"
-	return (
-		'<document type="freeswitch/xml">'
-		f'<section name="directory"><domain name={_attr(domain_name)}>'
-		"<params>"
-		'<param name="dial-string" value="{^^:sip_invite_domain=${dialed_domain}:presence_id=${dialed_user}@${dialed_domain}}${sofia_contact(*/${dialed_user}@${dialed_domain})}"/>'
-		"</params>"
-		'<groups><group name="fs_switch"><users>' + "".join(users) + "</users></group></groups>"
-		"</domain></section></document>"
-	)
-
-
-def _dialplan_xml() -> str:
-	settings = _settings()
-	plans = frappe.get_all(
-		"FS Dialplan",
-		filters={"enabled": 1},
-		fields=["name", "title", "context", "extension_name", "destination_number", "priority", "graph", "enabled"],
-		order_by="priority asc, modified asc",
-	)
-	valid = []
-	for row in plans:
-		plan = SimpleNamespace(
-			name=row.name,
-			title=row.title,
-			context=row.context,
-			extension_name=row.extension_name,
-			destination_number=row.destination_number,
-			priority=row.priority,
-			graph=row.graph,
-			enabled=row.enabled,
-		)
-		try:
-			compile_extension(plan)
-		except DialplanError as exc:
-			frappe.log_error(title=f"FS Switch dialplan {row.name}", message=str(exc))
-			continue
-		valid.append(plan)
-	return compile_dialplan(valid, settings)
-
-
-def _callcenter_xml() -> str:
-	settings = _settings()
-	context = (settings.default_context or "default").strip() or "default"
-	hold = settings.hold_music_file or "local_stream://moh"
-	queues, tiers, agents = [], [], []
-	used_extensions = set()
-
-	for row in frappe.get_all(
-		"FS Queue", filters={"enabled": 1}, fields=["name"], order_by="queue_name asc"
-	):
-		queue = frappe.get_doc("FS Queue", row.name)
-		members = [(row.extension, row.level or 1, row.position or 0) for row in queue.agents or []]
-		if queue.backup_queue:
-			backup = frappe.get_doc("FS Queue", queue.backup_queue)
-			members += [
-				(row.extension, 2, row.position or 0)
-				for row in backup.agents or []
-				if row.extension not in {member[0] for member in members}
-			]
-		if not members:
-			continue
-		queue_name = f"{queue.queue_name}@{context}"
-		queues.append(
-			f"<queue name={_attr(queue_name)}>"
-			f'<param name="strategy" value={_attr(queue.strategy or "longest-idle-agent")}/>'
-			f'<param name="moh-sound" value={_attr(queue.music_on_hold or hold)}/>'
-			f'<param name="max-wait-time" value={_attr(int(queue.max_wait_seconds or 180))}/>'
-			'<param name="max-wait-time-with-no-agent" value="30"/>'
-			'<param name="discard-abandoned-after" value="60"/>'
-			'<param name="abandoned-resume-allowed" value="false"/>'
-			'<param name="tier-rules-apply" value="false"/>'
-			'<param name="tier-rule-no-agent-no-wait" value="true"/>'
-			"</queue>"
-		)
-		for extension, level, position in members:
-			tiers.append(
-				f'<tier agent={_attr(f"{extension}@{context}")} '
-				f'queue={_attr(queue_name)} level="{int(level)}" position="{int(position)}"/>'
-			)
-			used_extensions.add(extension)
-
-	extension_rows = (
-		frappe.get_all(
-			"FS Extension",
-			filters={"enabled": 1, "name": ["in", sorted(used_extensions)]},
-			fields=["name", "extension", "agent_status"],
-			order_by="extension asc",
-		)
-		if used_extensions
-		else []
-	)
-	for row in extension_rows:
-		status = row.agent_status if row.agent_status in AGENT_STATUSES else "Logged Out"
-		agents.append(
-			f'<agent name={_attr(f"{row.extension}@{context}")} type="callback" '
-			f'contact={_attr(f"[leg_timeout=30]user/{row.extension}@$${{domain}}")} '
-			f'status={_attr(status)} max-no-answer="0" wrap-up-time="30" '
-			'reject-delay-time="10" busy-delay-time="0" no-answer-delay-time="10"/>'
-		)
-
-	return (
-		'<document type="freeswitch/xml">'
-		'<section name="configuration"><configuration name="callcenter.conf" description="Call center">'
-		"<settings></settings>"
-		"<queues>" + "".join(queues) + "</queues>"
-		"<agents>" + "".join(agents) + "</agents>"
-		"<tiers>" + "".join(tiers) + "</tiers>"
-		"</configuration></section></document>"
-	)
+		return NOT_FOUND_DOCUMENT
 
 
 def _require_admin():
@@ -209,12 +95,14 @@ def get_bootstrap():
 	if frappe.session.user == "Guest":
 		frappe.throw("Please log in.", frappe.PermissionError)
 	settings = _settings()
+	tenant = settings.default_tenant or DEFAULT_TENANT
 	return {
 		"user": frappe.session.user,
 		"full_name": frappe.utils.get_fullname(frappe.session.user),
 		"roles": frappe.get_roles(),
 		"is_admin": "System Manager" in frappe.get_roles(),
 		"settings": {
+			"default_tenant": settings.default_tenant or DEFAULT_TENANT,
 			"main_did": settings.main_did,
 			"default_context": settings.default_context,
 			"sip_domain": settings.sip_domain,
@@ -232,13 +120,27 @@ def get_bootstrap():
 			"recording_enabled": settings.recording_enabled,
 		},
 		"counts": {
-			"extensions": frappe.db.count("FS Extension", {"enabled": 1}),
-			"gateways": frappe.db.count("FS Gateway", {"enabled": 1}),
-			"queues": frappe.db.count("FS Queue", {"enabled": 1}),
-			"dialplans": frappe.db.count("FS Dialplan", {"enabled": 1}),
+			"extensions": frappe.db.count(
+				"FS Extension", {"enabled": 1, "tenant": tenant}
+			),
+			"gateways": frappe.db.count("FS Gateway", {"enabled": 1, "tenant": tenant}),
+			"queues": frappe.db.count("FS Queue", {"enabled": 1, "tenant": tenant}),
+			"dialplans": frappe.db.count("FS Dialplan", {"enabled": 1, "tenant": tenant}),
 		},
 		"version": "0.1.0",
 	}
+
+
+@frappe.whitelist()
+def get_flow_catalog():
+	"""Return the semantic node palette used by the flow editor.
+
+	The catalog contains no secrets or tenant data, so authenticated read-only
+	console users may view it even though they cannot save a flow.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw("Please log in.", frappe.PermissionError)
+	return {"schema": SCHEMA_VERSION, "nodes": node_catalog()}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -323,8 +225,34 @@ def run_live_action(action, uuid=None, destination=None, context=None, agent=Non
 	return {"ok": True, "reply": reply}
 
 
+@frappe.whitelist(methods=["POST"])
+def validate_semantic_flow(graph: str | None = None):
+	"""Validate an unsaved semantic flow for the visual editor.
+
+	The editor calls this while the administrator edits so broken routes are
+	visible before a save or publish. The response is intentionally a list of
+	human-readable messages rather than a single exception.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw("Please log in.", frappe.PermissionError)
+	if not graph:
+		return {"valid": False, "errors": ["The flow is empty."]}
+	try:
+		errors = validate_flow(graph)
+	except (FlowError, ValueError) as exc:
+		errors = [str(exc)]
+	return {"valid": not errors, "errors": errors}
+
+
 @frappe.whitelist()
-def preview_dialplan(name: str | None = None, graph: str | None = None):
+def preview_dialplan(
+	name: str | None = None,
+	graph: str | None = None,
+	graph_format: str = "raw",
+	extension_name: str | None = None,
+	context: str | None = None,
+	destination_number: str | None = None,
+):
 	_require_admin()
 	if name:
 		doc = frappe.get_doc("FS Dialplan", name)
@@ -332,14 +260,148 @@ def preview_dialplan(name: str | None = None, graph: str | None = None):
 	if graph:
 		plan = SimpleNamespace(
 			graph=graph,
-			extension_name="preview",
-			destination_number="^1000$",
+			graph_format=graph_format or "raw",
+			extension_name=(extension_name or "preview").strip() or "preview",
+			destination_number=(destination_number or "^1000$").strip() or "^1000$",
 			title="Preview",
-			context="default",
+			context=(context or "default").strip() or "default",
 			enabled=1,
 		)
 		return {"xml": compile_extension(plan)}
 	frappe.throw("Pass a dialplan name or a graph.")
+
+
+@frappe.whitelist(methods=["POST"])
+def simulate_route(
+	graph: str | None = None,
+	name: str | None = None,
+	destination: str | None = None,
+	at: str | None = None,
+	digits: str | None = None,
+	variables: str | None = None,
+	destination_number: str | None = None,
+	max_steps: int = 50,
+):
+	"""Walk a semantic Flow with call inputs and return the node path.
+
+	The editor sends an unsaved graph so an administrator can test a route before
+	saving or publishing. When ``name`` is supplied, the saved draft and its
+	destination pattern are used instead.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw("Please log in.", frappe.PermissionError)
+	pattern = (destination_number or "").strip()
+	if name:
+		doc = frappe.get_doc("FS Dialplan", name)
+		if str(doc.graph_format or "raw").strip().lower() != "semantic":
+			frappe.throw("The route simulator supports semantic Flows only.")
+		graph = graph or doc.graph
+		pattern = pattern or (doc.destination_number or "")
+	if not graph:
+		frappe.throw("Pass a Flow graph or a Flow name.")
+	try:
+		return simulate_flow(
+			graph,
+			destination=destination,
+			at=at,
+			digits=digits,
+			variables=variables,
+			destination_number=pattern,
+			max_steps=max_steps,
+		)
+	except ValueError as exc:
+		frappe.throw(str(exc))
+
+
+def _flow_payload(doc) -> dict:
+	payload = doc.as_dict()
+	payload.pop("versions", None)
+	return payload
+
+
+def _reload_xml() -> dict:
+	"""Ask FreeSWITCH to reload after a publish, without failing the publish."""
+	try:
+		return {"ok": True, "reply": execute_action("reload")}
+	except (OSError, ESLError, ValueError) as exc:
+		return {"ok": False, "error": str(exc)}
+
+
+@frappe.whitelist(methods=["POST"])
+def publish_dialplan(name: str, note: str | None = None):
+	"""Compile the saved draft and make it the published Flow version."""
+	_require_admin()
+	doc = frappe.get_doc("FS Dialplan", name)
+	try:
+		version = publish_flow(doc, note=note, published_by=frappe.session.user)
+	except ValueError as exc:
+		frappe.throw(str(exc))
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	invalidate_dialplan()
+	return {
+		"version": version,
+		"dialplan": _flow_payload(doc),
+		"reload": _reload_xml(),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def rollback_dialplan(name: str, version: int):
+	"""Serve an earlier published version without changing the draft."""
+	_require_admin()
+	doc = frappe.get_doc("FS Dialplan", name)
+	try:
+		target = rollback_flow(doc, version, published_by=frappe.session.user)
+	except ValueError as exc:
+		frappe.throw(str(exc))
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	invalidate_dialplan()
+	return {
+		"version": target,
+		"dialplan": _flow_payload(doc),
+		"reload": _reload_xml(),
+	}
+
+
+@frappe.whitelist()
+def get_dialplan_versions(name: str):
+	"""List published versions for the rollback drawer."""
+	_require_admin()
+	doc = frappe.get_doc("FS Dialplan", name)
+	rows = sorted(
+		doc.versions or [],
+		key=lambda row: int(row.version or 0),
+		reverse=True,
+	)
+	return {
+		"name": doc.name,
+		"title": doc.title,
+		"published_version": doc.published_version,
+		"versions": [
+			{
+				"version": row.version,
+				"tenant": row.tenant,
+				"published_on": row.published_on,
+				"published_by": row.published_by,
+				"graph_format": row.graph_format,
+				"context": row.context,
+				"priority": row.priority,
+				"note": row.note,
+			}
+			for row in rows
+		],
+	}
+
+
+@frappe.whitelist()
+def get_dialplan_diff(name: str):
+	"""Compare the saved Draft with the currently Published version."""
+	if frappe.session.user == "Guest":
+		frappe.throw("Please log in.", frappe.PermissionError)
+	doc = frappe.get_doc("FS Dialplan", name)
+	return diff_flow(doc)
 
 
 @frappe.whitelist()

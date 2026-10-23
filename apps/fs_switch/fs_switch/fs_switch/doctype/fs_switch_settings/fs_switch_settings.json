@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "general_section",
+  "default_tenant",
   "main_did",
   "default_context",
   "sip_domain",
@@ -30,6 +31,7 @@
  ],
  "fields": [
   {"fieldname": "general_section", "fieldtype": "Section Break", "label": "General"},
+  {"fieldname": "default_tenant", "fieldtype": "Link", "label": "Default tenant", "options": "FS Tenant", "default": "default", "reqd": 1, "read_only": 1, "description": "Tenant used when a routing label has no explicit mapping. Fixed in the single-tenant alpha."},
   {"fieldname": "main_did", "fieldtype": "Data", "label": "Main inbound number (DID)", "description": "The number callers dial, in the format your carrier sends. E.164 with or without a leading + is accepted."},
   {"fieldname": "default_context", "fieldtype": "Data", "label": "Default context", "default": "default", "reqd": 1},
   {"fieldname": "sip_domain", "fieldtype": "Data", "label": "SIP domain", "default": "localhost", "reqd": 1, "description": "The domain agents register on. Must match the FreeSWITCH domain."},

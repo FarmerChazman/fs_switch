@@ -20,7 +20,9 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 
 import { api, parseGraph } from '../api'
+import { stripPublishState } from '../flow'
 import FSNode from './FSNode.vue'
+import SemanticFlowEditor from './SemanticFlowEditor.vue'
 
 const props = defineProps({
   doc: { type: Object, required: true },
@@ -46,17 +48,25 @@ const applications = [
   'hangup',
 ]
 
-const form = ref({})
+const form = ref({ ...props.doc })
 const nodes = ref([])
 const edges = ref([])
 const activeTab = ref('flow')
 const drawer = ref(false)
 const selectedNode = ref(null)
 const saving = ref(false)
+const publishing = ref(false)
 const previewXml = ref('')
 const previewError = ref('')
 
 const isNew = computed(() => !form.value.name)
+const isSemantic = computed(() => form.value.graph_format === 'semantic')
+const publishLabel = computed(() => {
+  if (form.value.publish_status !== 'Published') return 'Draft'
+  return form.value.published_version
+    ? `Published v${form.value.published_version}`
+    : 'Published'
+})
 const selectedData = computed(() => selectedNode.value?.data || null)
 
 function defaultGraph() {
@@ -88,6 +98,7 @@ function hydrate(doc) {
     priority: 10,
     enabled: 1,
     description: '',
+    graph_format: 'raw',
     graph: '',
     compiled_xml: '',
     ...doc,
@@ -143,15 +154,14 @@ function graphPayload() {
 async function save() {
   if (!form.value.title?.trim() || !form.value.extension_name?.trim()) {
     props.notify('Title and extension name are required.', 'error')
-    return
+    return null
   }
   saving.value = true
   try {
-    const payload = {
+    const payload = stripPublishState({
       ...form.value,
       graph: graphPayload(),
-    }
-    delete payload.compiled_xml
+    })
     const saved = form.value.name
       ? await api.update('FS Dialplan', form.value.name, payload)
       : await api.create('FS Dialplan', payload)
@@ -159,10 +169,38 @@ async function save() {
     props.notify('Dialplan saved.')
     emit('saved', saved)
     await loadPreview()
+    return saved
+  } catch (error) {
+    props.notify(error.message, 'error')
+    return null
+  } finally {
+    saving.value = false
+  }
+}
+
+async function publish() {
+  if (!props.isAdmin || publishing.value) return
+  const saved = await save()
+  if (!saved?.name) return
+  publishing.value = true
+  try {
+    const result = await api.publishFlow(saved.name)
+    const updated = result.dialplan || saved
+    form.value = { ...form.value, ...updated }
+    if (result.reload && result.reload.ok === false) {
+      props.notify(
+        `Published dialplan as version ${result.version}, but FreeSWITCH did not reload: ${result.reload.error}`,
+        'warn',
+      )
+    } else {
+      props.notify(`Published dialplan as version ${result.version}.`)
+    }
+    emit('saved', updated)
+    await loadPreview()
   } catch (error) {
     props.notify(error.message, 'error')
   } finally {
-    saving.value = false
+    publishing.value = false
   }
 }
 
@@ -182,6 +220,11 @@ async function loadPreview() {
   }
 }
 
+function onSemanticSaved(saved) {
+  form.value = { ...form.value, ...saved }
+  emit('saved', saved)
+}
+
 watch(activeTab, (tab) => {
   if (tab === 'xml') loadPreview()
 })
@@ -190,15 +233,42 @@ onMounted(() => hydrate(props.doc))
 </script>
 
 <template>
-  <div class="fs-stack">
+  <SemanticFlowEditor
+    v-if="isSemantic"
+    :doc="form"
+    :notify="notify"
+    :is-admin="isAdmin"
+    @saved="onSemanticSaved"
+    @close="emit('close')"
+  />
+
+  <div v-else class="fs-stack">
     <div class="fs-toolbar">
       <div class="fs-toolbar-title">
         <h2>{{ isNew ? 'New dialplan' : form.title }}</h2>
         <span>{{ form.context }} · {{ form.destination_number }}</span>
       </div>
-      <div style="display: flex; gap: 8px">
+      <div style="display: flex; gap: 8px; align-items: center">
+        <Tag
+          :value="publishLabel"
+          :severity="form.publish_status === 'Published' ? 'success' : 'warning'"
+        />
         <Button label="Back" icon="pi pi-arrow-left" severity="secondary" text @click="emit('close')" />
-        <Button label="Save" icon="pi pi-check" :loading="saving" :disabled="!isAdmin" @click="save" />
+        <Button
+          label="Save"
+          icon="pi pi-check"
+          :loading="saving"
+          :disabled="!isAdmin"
+          @click="save"
+        />
+        <Button
+          label="Publish"
+          icon="pi pi-upload"
+          severity="success"
+          :loading="publishing"
+          :disabled="!isAdmin || saving || form.publish_status === 'Published'"
+          @click="publish"
+        />
       </div>
     </div>
 
@@ -212,7 +282,13 @@ onMounted(() => hydrate(props.doc))
       <TabPanels>
         <TabPanel value="flow">
           <div class="fs-preview-actions">
-            <Button label="Add node" icon="pi pi-plus" size="small" severity="secondary" @click="addNode" />
+            <Button
+              label="Add node"
+              icon="pi pi-plus"
+              size="small"
+              severity="secondary"
+              @click="addNode"
+            />
             <span style="color: var(--fs-muted); font-size: 12px; align-self: center">
               Drag from a node's right handle to the next node's left handle.
             </span>
@@ -313,8 +389,9 @@ onMounted(() => hydrate(props.doc))
               </div>
             </div>
             <div class="fs-settings-note" style="margin-top: 18px">
-              The XML tab is generated by the same compiler FreeSWITCH uses. The first
-              release compiles a linear chain; use the table order or graph edges to set it.
+              The XML tab is generated by the same compiler FreeSWITCH uses. The raw format
+              compiles a linear chain; use the table order or graph edges to set it. Semantic
+              flows open in the semantic canvas instead of this editor.
             </div>
           </div>
         </TabPanel>

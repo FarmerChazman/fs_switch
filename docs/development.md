@@ -2,9 +2,11 @@
 
 ## Prerequisites
 
-- Python 3.10+ (Frappe v16 bench uses 3.14 in the Docker image)
-- Node 20+ and Yarn 1.22
+- Python 3.10+ (the Docker image uses the Python version shipped with Frappe
+  v16)
+- Node 20+ and npm (the frontend has a `package-lock.json`)
 - MariaDB and Redis for a local bench
+- FreeSWITCH 1.10 for end-to-end call testing
 - Docker Desktop if you want the container path
 
 ## Backend
@@ -12,10 +14,18 @@
 The app is a normal Frappe app. To install it on a bench:
 
 ```bash
-bench get-app /path/to/fs_switch
+bench get-app https://github.com/FarmerChazman/fs_switch.git
 bench --site dev.localhost install-app fs_switch
 bench --site dev.localhost migrate
 ```
+
+Run `migrate` after pulling changes that add DocType fields, patches or a new
+schema. The migration:
+
+- creates the default Tenant if it is missing,
+- backfills `tenant` on existing Flows, extensions, queues and gateways,
+- backfills `published_tenant` on already-published Flows,
+- publishes every existing valid Flow once.
 
 Useful commands:
 
@@ -23,6 +33,7 @@ Useful commands:
 bench --site dev.localhost console
 bench --site dev.localhost execute fs_switch.api.get_bootstrap
 bench --site dev.localhost execute fs_switch.api.get_live_data
+bench --site dev.localhost execute fs_switch.setup.configure_from_env
 ```
 
 The XML-curl endpoint can be checked without FreeSWITCH once the secret is set:
@@ -31,39 +42,64 @@ The XML-curl endpoint can be checked without FreeSWITCH once the secret is set:
 curl 'http://dev.localhost:8000/api/method/fs_switch.api.xml_curl?secret=...&section=dialplan'
 ```
 
+### ESL listener
+
+The listener is a long-running process. Start it next to the bench:
+
+```bash
+bench --site dev.localhost execute fs_switch.esl_listener.run
+```
+
+For production, install `freeswitch/install/esl-listener.service` and adjust the
+site name and paths. The Docker entrypoint starts the listener automatically.
+The listener reconnects after a FreeSWITCH restart.
+
 ## Frontend
 
 ```bash
 cd apps/fs_switch/frontend
-yarn install
-yarn dev        # Vite dev server
-yarn build      # writes ../fs_switch/public/console
+npm ci
+npm run dev        # Vite dev server on :5174
+npm run build      # writes ../fs_switch/public/console
 ```
 
 The Vite config sets `base` to `/assets/fs_switch/console/` and emits stable
-asset names (`app.js`, `app.css`) so `www/fs-switch.html` can load them without
-a manifest lookup.
+asset names (`app.js`, `app.css`) so `www/fs-switch.html` can load them without a
+manifest lookup. The dev server proxies `/api` and `/assets` to
+`http://fs-switch.localhost:8000`.
 
 ## Tests
 
 ```bash
-python -m compileall apps/fs_switch
-python -m pytest tests
+python -m compileall apps/fs_switch tests
+python -m unittest discover -s tests -v
+git diff --check
 ```
 
-The dialplan compiler test does not need a Frappe site.
+`pytest tests` is also supported. The compiler, publish, call-setup, route
+simulator, diff and tenant-helper tests run without a Frappe site. DocType
+validation, patches, XML-curl handlers and the console need a live bench for
+end-to-end verification.
+
+The frontend build is the frontend check:
+
+```bash
+cd apps/fs_switch/frontend
+npm run build
+```
 
 ## Docker
 
 ```bash
 cp .env.example .env
-# edit secrets
+# edit every CHANGE_ME value
 docker compose up -d --build
 docker compose logs -f frappe
 ```
 
 The FreeSWITCH image compiles FreeSWITCH from source. Rebuilds are cached; the
-first build is the slow one.
+first build is the slow one. The compose file publishes the console on port 8000
+and Socket.IO on port 9000. It does not publish the ESL port.
 
 ## FreeSWITCH config
 
@@ -75,12 +111,45 @@ The container entrypoint writes:
 - `vars.xml` with the public IP,
 - a self-signed TLS certificate when no certificate is mounted.
 
-For a production host, use `freeswitch/install/install-config.sh` and a real
-TLS certificate in `/etc/freeswitch/tls/wss.pem`.
+For a production host, use `freeswitch/install/install-config.sh` and a real TLS
+certificate in `/etc/freeswitch/tls/wss.pem`.
+
+## Call-setup cache
+
+The directory, dialplan and `callcenter.conf` handlers serve whole documents from
+Redis. Keys carry the Tenant and routing label:
+
+```text
+fs_switch:xml:current:<kind>:<tenant>:<name>
+fs_switch:xml:last-known-good:<kind>:<tenant>:<name>
+```
+
+Publish, rollback, enable/disable, settings, Tenant, extension, queue and
+gateway changes invalidate the current key after commit. Handlers never
+invalidate. Last-known-good has no expiry and is not overwritten by an empty
+build. If no last-known-good exists, the handler returns FreeSWITCH's not-found
+document.
+
+The served dialplan is filtered by `published_tenant`, not the Draft tenant. A
+normal save cannot change `published_*` fields or version history; only publish
+and rollback do.
+
+## Documentation
+
+- [`README.md`](../README.md) - install, configuration and feature overview
+- [`docs/README.md`](README.md) - documentation index
+- [`PRODUCT.md`](PRODUCT.md) - product direction and scope
+- [`architecture.md`](architecture.md) - control-plane and data-plane design
+- [`flow-model.md`](flow-model.md) - Flow schema, compiler, simulator, publish and diff
+- [`ui.md`](ui.md) - console layout and editor behaviour
+- [`operations.md`](operations.md) - publishing, cache, ESL listener, troubleshooting and backup
+- [`DEFERRED.md`](DEFERRED.md) - limitations and next slices
+- [`adr/`](adr) - architecture decision records
 
 ## Releasing
 
 1. Update `CHANGELOG.md` and the app version in `pyproject.toml`.
 2. Run the checks and a clean Docker build.
-3. Tag the commit and publish a GitHub release with the source archive.
-4. Keep the AGPL license and copyright notices intact.
+3. Build the frontend with `npm run build`.
+4. Tag the commit and publish a GitHub release with the source archive.
+5. Keep the AGPL license and copyright notices intact.

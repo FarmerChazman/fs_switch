@@ -12,9 +12,17 @@ import json
 import re
 from xml.sax.saxutils import quoteattr
 
+from fs_switch.flow import compile_flow
+
 
 class DialplanError(ValueError):
 	"""Raised when a graph cannot be compiled."""
+
+
+NOT_FOUND_DOCUMENT = (
+	'<document type="freeswitch/xml"><section name="result">'
+	'<result status="not found"/></section></document>'
+)
 
 
 def load_graph(graph) -> tuple[list[dict], list[dict]]:
@@ -85,7 +93,19 @@ def _action(node: dict) -> str:
 
 
 def compile_extension(plan) -> str:
-	"""Compile one FS Dialplan document-like object into an extension block."""
+	"""Compile one FS Dialplan document-like object into extension XML.
+
+	A plan may use either the original raw-application graph or the semantic
+	flow graph. Semantic graphs are compiled into several synthetic extensions,
+	so the return value is a block rather than a single extension.
+	"""
+	if str(getattr(plan, "graph_format", "raw") or "raw").strip().lower() == "semantic":
+		return compile_flow(
+			plan.graph,
+			context=getattr(plan, "context", None),
+			name=getattr(plan, "extension_name", None) or getattr(plan, "title", None),
+			destination_number=getattr(plan, "destination_number", None),
+		)
 	nodes, edges = load_graph(plan.graph)
 	extension_name = str(plan.extension_name or "").strip()
 	destination = str(plan.destination_number or ".*").strip()
@@ -117,22 +137,8 @@ def inbound_pattern(did: str) -> str:
 	return r"^\+?" + digits + r"$"
 
 
-def compile_dialplan(plans: list, settings) -> str:
-	"""Build the whole <document> for mod_xml_curl's dialplan binding.
-
-	plans are FS Dialplan documents; settings is FS Switch Settings.
-	"""
-	context = (getattr(settings, "default_context", None) or "default").strip() or "default"
-	enabled = [plan for plan in plans if getattr(plan, "enabled", 0)]
-	enabled.sort(key=lambda plan: (int(getattr(plan, "priority", 0) or 0), plan.title or ""))
-
-	# One context element per name. FreeSWITCH does not merge duplicate context
-	# elements reliably, so every extension for a context is collected here.
-	contexts: dict[str, list[str]] = {}
-	for plan in enabled:
-		plan_context = (getattr(plan, "context", None) or context).strip() or context
-		contexts.setdefault(plan_context, []).append(compile_extension(plan))
-
+def _assemble_dialplan(contexts: dict[str, list[str]], settings, context: str) -> str:
+	"""Wrap compiled extension blocks in the mod_xml_curl dialplan document."""
 	if getattr(settings, "allow_internal_calls", 1):
 		contexts.setdefault(context, []).append(
 			'    <extension name="fs_switch_internal">\n'
@@ -156,7 +162,7 @@ def compile_dialplan(plans: list, settings) -> str:
 		)
 
 	if not contexts:
-		return '<document type="freeswitch/xml"></document>'
+		return NOT_FOUND_DOCUMENT
 
 	# Put the default context first for readability; the rest keep insertion order.
 	ordered = sorted(contexts, key=lambda name: (name != context, name))
@@ -170,3 +176,48 @@ def compile_dialplan(plans: list, settings) -> str:
 		+ "\n".join(blocks)
 		+ "\n</section>\n</document>"
 	)
+
+
+def compile_dialplan(plans: list, settings) -> str:
+	"""Compile draft Flows into the whole dialplan document.
+
+	This is the preview/test path. The xml-curl call-setup path uses
+	compile_published_dialplan so drafts never reach FreeSWITCH.
+	"""
+	context = (getattr(settings, "default_context", None) or "default").strip() or "default"
+	enabled = [plan for plan in plans if getattr(plan, "enabled", 0)]
+	enabled.sort(key=lambda plan: (int(getattr(plan, "priority", 0) or 0), plan.title or ""))
+
+	# One context element per name. FreeSWITCH does not merge duplicate context
+	# elements reliably, so every extension for a context is collected here.
+	contexts: dict[str, list[str]] = {}
+	for plan in enabled:
+		plan_context = (getattr(plan, "context", None) or context).strip() or context
+		contexts.setdefault(plan_context, []).append(compile_extension(plan))
+
+	return _assemble_dialplan(contexts, settings, context)
+
+
+def compile_published_dialplan(plans: list, settings) -> str:
+	"""Build the call-setup dialplan from published XML only.
+
+	plans are FS Dialplan rows carrying published_xml, published_context and
+	published_priority. Draft graph fields are deliberately ignored.
+	"""
+	context = (getattr(settings, "default_context", None) or "default").strip() or "default"
+	enabled = [plan for plan in plans if getattr(plan, "enabled", 0)]
+	enabled.sort(
+		key=lambda plan: (int(getattr(plan, "published_priority", 0) or 0), plan.title or "")
+	)
+
+	contexts: dict[str, list[str]] = {}
+	for plan in enabled:
+		xml = str(getattr(plan, "published_xml", "") or "").strip()
+		if not xml:
+			continue
+		plan_context = (
+			(getattr(plan, "published_context", None) or context).strip() or context
+		)
+		contexts.setdefault(plan_context, []).append(xml)
+
+	return _assemble_dialplan(contexts, settings, context)

@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "extension",
+  "tenant",
   "display_name",
   "user",
   "enabled",
@@ -20,6 +21,7 @@
  ],
  "fields": [
   {"fieldname": "extension", "fieldtype": "Data", "label": "Extension", "reqd": 1, "unique": 1, "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "tenant", "fieldtype": "Link", "label": "Tenant", "options": "FS Tenant", "default": "default", "reqd": 1, "read_only": 1, "hidden": 1, "in_standard_filter": 1},
   {"fieldname": "display_name", "fieldtype": "Data", "label": "Display name", "in_list_view": 1},
   {"fieldname": "user", "fieldtype": "Link", "label": "Frappe user", "options": "User", "in_list_view": 1, "in_standard_filter": 1},
   {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},

@@ -3,6 +3,9 @@
 FS Switch is an AGPL-3.0 project. By contributing you agree that your changes
 are licensed under the same terms.
 
+The public repository is
+<https://github.com/FarmerChazman/fs_switch>.
+
 ## Development setup
 
 1. Create a Frappe v16 bench.
@@ -18,17 +21,21 @@ are licensed under the same terms.
 
    ```bash
    cd apps/fs_switch/frontend
-   yarn install
-   yarn build
+   npm ci
+   npm run build
    ```
 
-5. Run the small checks:
+   Use `npm run dev` for the Vite dev server.
+
+5. Run the checks:
 
    ```bash
-   python -m compileall apps/fs_switch
-   python -m json.tool apps/fs_switch/fs_switch/hooks.py >/dev/null 2>&1 || true
-   cd tests && python -m pytest
+   python -m compileall apps/fs_switch tests
+   python -m unittest discover -s tests -v
+   git diff --check
    ```
+
+   `pytest tests` works too if you have pytest installed.
 
 ## Style
 
@@ -37,9 +44,35 @@ are licensed under the same terms.
 - Keep client-specific branding out of the repository. Use the neutral
   `fs_switch` mark in `apps/fs_switch/fs_switch/public/images`.
 - Never commit `.env`, SIP credentials, ESL passwords or production hostnames.
+- Keep XML as compiler output. Do not add a second source of truth for routing.
+
+## Documentation and changelog
+
+Every user-visible change updates at least one of:
+
+- [`README.md`](README.md) for installation, configuration or the feature
+  overview,
+- [`docs/ui.md`](docs/ui.md) for console behaviour,
+- [`docs/flow-model.md`](docs/flow-model.md) for the Flow graph, compiler,
+  simulator, publish lifecycle or diff,
+- [`docs/architecture.md`](docs/architecture.md) for boundaries, cache or live
+  events,
+- [`CHANGELOG.md`](CHANGELOG.md) for the release summary.
+
+Architectural changes add an ADR under [`docs/adr/`](docs/adr). Deferred work
+belongs in [`docs/DEFERRED.md`](docs/DEFERRED.md).
 
 ## Pull requests
 
 Describe the change, the FreeSWITCH version tested against, and whether the
 change affects the XML-curl contract. Include a test or a manual verification
 note. Keep changes focused.
+
+CI runs the Python unit tests and the frontend build. A pull request should pass
+both before merge. Do not include generated console assets unless the change
+intentionally updates the shipped bundle.
+
+## Security
+
+Do not report vulnerabilities in a public issue. Follow
+[`SECURITY.md`](SECURITY.md).

@@ -1,0 +1,254 @@
+1. The one-sentence goal
+You are not trying to build another FreePBX-style settings page.
+You want FS Switch to become a Frappe-native, carrier-grade FreeSWITCH control plane: a visual, real-time, multi-tenant telecom operating system where a non-telecom administrator can design, publish, monitor, and operate voice and contact-centre services without touching XML — while senior engineers retain table and XML visibility.
+The core promise is:
+FreeSWITCH power. SaaS ease. Frappe as the single source of truth.
+2. What the two documents are really saying
+They are complementary:
+- docs/FreeSWITCH UI.txt answers “what stack and UI model should we use?”
+- Frappe, not a second backend.
+- Vue 3 + PrimeVue + Vue Flow.
+- MariaDB/Redis/Socket.IO already in Frappe.
+- mod_xml_curl for configuration.
+- ESL for live commands and events.
+- Three UI modes: tabbed forms, structured tree, and a visual node canvas.
+- One unified JSON graph driving all three views.
+- docs/world-class FreeSWITCH UI layout idea.txt answers “how far should the product go?”
+- Carrier layer: trunks, gateways, LCR, SIP profiles, ACLs.
+- Tenant layer: companies, extensions, ring groups, voicemail.
+- Logic layer: visual IVRs, time conditions, TTS, AI agents.
+- Live workspace: wallboards, channels, supervisor tools.
+- Endpoint layer: embedded WebRTC softphone.
+- The UI should feel like Figma or Miro, not a telecom configuration screen.
+- XML should be an output, never the editing surface.
+The second document is the product ambition. The first is the implementation philosophy.
+3. The product thesis
+FS Switch should be the layer that makes FreeSWITCH understandable.
+FreeSWITCH is an enterprise software-defined telecom engine. Its power is in contexts, domains, Sofia profiles, gateways, dialplans, call-center queues, ESL events, media, and real-time control. Its weakness is that all of that power is exposed as XML and CLI commands.
+FS Switch should abstract the intent while preserving the power:
+- An administrator thinks in terms of:
+- “This number goes to the support queue during office hours.”
+- “After hours, play the closed message and offer voicemail.”
+- “If no agent answers in 30 seconds, overflow to the backup queue.”
+- FS Switch compiles that into correct FreeSWITCH XML and call-center configuration.
+- FreeSWITCH remains the media and routing engine.
+- Frappe remains the configuration, permission, audit, and realtime plane.
+That is the product.
+4. The five pillars — and what each really means
+Pillar	What it means in the product	Current alpha
+Carrier layer	SIP trunks, gateways, failover, codecs, caller ID, SIP profiles, ACLs, LCR/rate decks	Basic FS Gateway CRUD; no LCR, carrier templates, failover ranking, or rate decks
+Tenant layer	Companies, domains, contexts, DIDs, extensions, ring groups, voicemail	Single-tenant settings; extensions, queues, caller ID; no tenant model or DID inventory
+Logic layer	Visual IVR, time/holiday routing, digit menus, ring groups, webhooks, TTS/ASR, AI agents	Linear Vue Flow graph of raw FreeSWITCH applications; no branching, semantic nodes, or media manager
+Live workspace	Queue wallboard, active channels, agent states, supervisor listen/whisper/barge, call-path highlighting	Channels, registrations, agents, queues; hangup/transfer/status actions; 5-second polling; listener exists but UI does not subscribe to push events
+Endpoint layer	Embedded WebRTC softphone, screen pop, presence, call controls, credential lifecycle	get_softphone_config API exists; no embedded softphone in the FS Switch console
+The current alpha has the skeleton of all five. The product layer is mostly still missing.
+5. The UX model: one graph, three projections
+The documents describe three interface styles. They should not become three separate products.
+They should be three projections of the same underlying model:
+                 ┌─────────────────────┐
+                 │  Flow graph JSON    │
+                 │  (single source)    │
+                 └──────────┬──────────┘
+                            │
+          ┌─────────────────┼─────────────────┐
+          ▼                 ▼                 ▼
+   Visual canvas       Table view        XML preview
+   (Vue Flow)          (PrimeVue)        (compiler output)
+The left tree is the navigation anchor. The workspace is tabbed. The canvas is one tab, not the whole product. The XML tab is generated and read-only. The table and graph must never drift apart.
+This is why the unified graph model matters. If the graph is the source of truth, the UI can offer:
+- a visual flow for junior admins,
+- an ordered table for fast bulk editing,
+- an XML preview for senior engineers,
+- and a route simulator for testing.
+The current FS Dialplan document already stores graph JSON and a read-only compiled_xml. That is the right seed. But the current graph is still a linear chain of raw FreeSWITCH applications, not a semantic call-flow model.
+6. The runtime model
+The architecture in the documents is sound and should stay:
+Vue 3 + PrimeVue + Vue Flow
+        │ REST / Socket.IO
+Frappe / FS Switch
+  ├── DocTypes and permissions
+  ├── graph compiler
+  ├── mod_xml_curl endpoints
+  ├── ESL command client
+  └── ESL event listener
+        │ XML-curl          │ ESL
+FreeSWITCH 1.10
+  ├── mod_sofia
+  ├── mod_callcenter
+  ├── mod_xml_curl
+  ├── mod_event_socket
+  └── media applications
+Key architectural decisions I would keep:
+- No second backend. Do not add Laravel, Go, or a separate Node service just for FreeSWITCH.
+- Frappe is the control plane. Configuration, identity, roles, audit, versioning, and realtime events live there.
+- FreeSWITCH is the data plane. Media, SIP, RTP, queues, and call routing stay in FreeSWITCH.
+- XML-curl for configuration. Directory, dialplan, and callcenter.conf come from Frappe.
+- ESL for live state and actions. Short-lived connections for commands; one long-lived listener for events.
+- Redis/Socket.IO for events. ESL → listener → Frappe realtime → Vue.
+- Python-side compilation. The browser should send a graph; the server should compile and validate XML.
+- Vue Flow is the canvas, not the compiler. The graph is the product’s data; Vue Flow is only its editor.
+I would also add a rule the documents imply but do not state strongly enough:
+The XML-curl path is on the call-setup path. It must be fast, cached, validated, and able to fail safely.
+If Frappe is slow or down, FreeSWITCH call routing should not collapse. The current app compiles on every request and has no last-known-good cache. That is fine for alpha, but not for a world-class control plane.
+7. What “world-class” concretely requires
+The vision is not just prettier forms. It requires several hard capabilities.
+7.1 A semantic node registry, not a raw application list
+The current editor exposes raw FreeSWITCH applications:
+answer, playback, sleep, ivr, callcenter, bridge, transfer, set, record, park,
+voicemail, conference, hangup
+That is useful for engineers. It is not the world-class experience.
+The world-class editor needs semantic nodes such as:
+- Inbound DID
+- Office Hours
+- Holiday Calendar
+- Play Prompt
+- Collect Digits
+- IVR Menu
+- Ring Group
+- Queue
+- Voicemail
+- Transfer
+- Webhook
+- AI Agent
+- Hang Up
+Each node should have:
+- a category,
+- an icon,
+- a configuration schema,
+- a property drawer,
+- input/output ports,
+- validation rules,
+- and a compiler that emits the correct FreeSWITCH XML.
+Raw FreeSWITCH application nodes can remain as an Advanced mode.
+7.2 Branching is the hard part
+The current compiler topologically sorts a linear graph. FreeSWITCH is condition-based. A world-class flow model needs:
+- edges with sourceHandle / targetHandle,
+- conditions on edges,
+- match/no-match ports,
+- digit ports,
+- timeout ports,
+- success/failure ports,
+- nested <condition> generation or separate extensions with priorities,
+- validation for unreachable nodes, dangling edges, cycles, and missing ports.
+Without this, the visual editor is a drawing tool, not a dialplan compiler. This is the single most important technical foundation.
+7.3 Draft, validate, publish, rollback
+Editing a live dialplan directly is dangerous. The product should have:
+- a draft graph,
+- a validation step,
+- a compiled XML diff,
+- a publish action,
+- an atomic reloadxml,
+- a rollback to the previous published version.
+Frappe’s document versioning is a start, but it is not the same as explicit publish/rollback semantics.
+7.4 Real-time by default
+The listener already publishes fs_switch_call and fs_switch_agent events. The console still polls every five seconds.
+The target should be:
+- Socket.IO push for call and agent events,
+- polling only as a fallback,
+- live call-path highlighting directly on the flow canvas,
+- queue depth and agent state updating without a refresh,
+- supervisor actions that feel instant.
+7.5 Multi-tenancy must be decided early
+The documents describe a SaaS PBX with tenants, domains, and contexts. The current app is single-tenant.
+If multi-tenancy is the destination, add the tenant concept to the data model now, even if the first UI is single-tenant:
+- FS Tenant / FS Organization
+- tenant-scoped settings
+- tenant domains and contexts
+- tenant DID inventory
+- tenant-scoped roles and permissions
+- XML-curl resolution by domain/context
+- strict query isolation in Frappe
+FreeSWITCH contexts and domains are not a security boundary by themselves. Frappe must enforce isolation.
+7.6 LCR is a separate engine
+A gateway list is not an LCR engine. World-class carrier routing needs:
+- carriers/trunks,
+- rate decks,
+- effective dates,
+- currency and precision,
+- least-cost ranking,
+- quality/time-of-day preferences,
+- failover rules,
+- a route tester.
+That is a significant subsystem. It should not be hidden inside a generic “dialplan node” abstraction.
+7.7 Media and softphone are products in themselves
+The documents mention TTS, ASR, IVR prompts, conferencing, and an embedded WebRTC softphone. The current app only stores file paths.
+A real media layer needs:
+- upload and validation,
+- transcoding to FreeSWITCH-compatible formats,
+- prompt versioning,
+- TTS adapters,
+- ASR/AI adapters,
+- recording storage and retention,
+- consent and PII handling.
+The softphone needs:
+- JsSIP or SIP.js in Vue,
+- WSS,
+- STUN/TURN,
+- credential rotation,
+- presence,
+- screen pop,
+- call controls,
+- optional Helpdesk integration.
+The current get_softphone_config API is the seed, but the FS Switch console does not yet contain the widget.
+8. What the current alpha already gets right
+This is important: you are not starting from zero.
+- The standalone Frappe app boundary is correct.
+- mod_xml_curl for directory, dialplan, and callcenter.conf is the right control path.
+- The dependency-free ESL client is small and auditable.
+- The command whitelist is the right security instinct.
+- The event listener already normalises call and agent events.
+- The Vue 3 + PrimeVue + Vue Flow stack is already in place.
+- The dialplan graph and compiler already exist.
+- The live grids and channel actions already prove the operational model.
+- The XML-curl secret and System Manager restriction are sensible defaults.
+- The app is standalone, with optional Helpdesk integration — that is the right product boundary.
+9. What is still “FreeSWITCH-shaped” rather than “telecom-shaped”
+The current alpha is an excellent FreeSWITCH admin console. It is not yet the world-class product from the second document.
+The main gaps:
+- Raw FreeSWITCH applications as primary nodes.
+- Linear flows only.
+- Single tenant.
+- No DID inventory.
+- No carrier templates or LCR.
+- No semantic node registry.
+- No draft/publish/rollback.
+- No push-driven live UI.
+- No supervisor listen/whisper/barge.
+- No media manager, TTS, or ASR.
+- No embedded softphone.
+- No call logs, recordings, voicemail, or CDR model.
+- No tenant-aware roles.
+10. The foundational decisions I would lock before building further
+1. Single-tenant first, or multi-tenant from day one?
+The documents point to SaaS. The code is single-tenant. Retrofitting tenancy later is expensive.
+2. Is the primary persona an IT administrator replacing FreePBX, or a contact-centre supervisor?
+Those are different first screens and different “wow” moments.
+3. Is the first flagship capability the visual IVR or the live supervisor wallboard?
+Both are compelling, but they stress different parts of the system.
+4. Does “zero XML” mean no XML ever, or semantic UI by default with an advanced XML/table escape hatch?
+I recommend the latter. Senior engineers will not trust a system they cannot inspect.
+5. Is the first release a product for one company, or a platform for many tenants?
+The data model and permissions should reflect that answer now.
+11. The first cornerstone I would build
+Not more panels. Not theme polish.
+The first cornerstone should be:
+The semantic flow model, node registry, compiler, and validation/publish pipeline.
+Because the visual editor is only as good as the compiler underneath it. If the compiler cannot represent branching, reusable blocks, and safe publishing, the canvas is a demo.
+A practical sequence:
+1. Define the semantic node schema and edge/port model.
+2. Build the node registry with compile functions.
+3. Extend the compiler to support conditions, ports, and nested blocks.
+4. Add validation, golden XML tests, and a route simulator.
+5. Add draft/publish/rollback.
+6. Then build the world-class canvas and property drawers on top.
+7. Then add tenancy, LCR, media, live push, supervisor tools, and the softphone.
+12. My plain-English understanding of what you want
+You want FS Switch to be remembered as the control plane that made FreeSWITCH feel modern.
+Not a thin XML editor. Not a FreePBX clone. Not a collection of settings pages.
+A product where:
+- a junior admin can provision a tenant, a number, a trunk, extensions, a queue, and a visual IVR without reading FreeSWITCH documentation;
+- a supervisor can watch calls move through the flow and intervene instantly;
+- a senior engineer can inspect the table, the generated XML, and the raw application nodes when needed;
+- every change is audited, versioned, validated, and reversible;
+- FreeSWITCH remains the powerful engine underneath, and Frappe remains the brain.
+That is the ambition I now have in mind. If that matches your intent, the next step is to turn these two raw documents into a formal product brief and a concrete architecture decision record — starting with the semantic graph and compiler, because that is the part everything else depends on.
