@@ -21,8 +21,6 @@ item into a plan when it becomes the next slice.
 
 ## Next slices
 
-- Agent self-service page for the caller's own extension and softphone
-  credentials.
 - Call logs, voicemail and missed-call records.
 - Embedded softphone, presence and screen pop.
 - Carrier templates, failover and LCR/rate decks.

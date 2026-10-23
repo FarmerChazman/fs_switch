@@ -20,6 +20,7 @@ four-part interface:
 
 ```text
 Overview
+My extension
 Tenants
 Telephony
   Extensions
@@ -65,6 +66,14 @@ unknown routing labels. Membership roles are:
 
 The member list is a child table. Removing a user from a Tenant or disabling the
 Tenant removes the projected `FS Switch *` role after commit.
+
+## My extension
+
+**My extension** shows the signed-in user's own endpoint for the active Tenant:
+extension, display name, context, SIP domain and agent status. It also shows the
+WebRTC URL and the SIP password behind a **Reveal** button. The endpoint returns
+credentials only to the extension owner, and a user without an extension sees a
+clear empty state.
 
 ## Extension workspace
 

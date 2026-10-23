@@ -53,6 +53,10 @@ export const api = {
     const query = tenant ? `?tenant=${encodeURIComponent(tenant)}` : ''
     return request(`/api/method/fs_switch.api.get_live_data${query}`)
   },
+  softphoneConfig: (tenant = '') => {
+    const query = tenant ? `?tenant=${encodeURIComponent(tenant)}` : ''
+    return request(`/api/method/fs_switch.api.get_softphone_config${query}`)
+  },
   preview: (name) =>
     request(`/api/method/fs_switch.api.preview_dialplan?name=${encodeURIComponent(name)}`),
   flowCatalog: () => request('/api/method/fs_switch.api.get_flow_catalog'),

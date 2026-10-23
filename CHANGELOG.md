@@ -43,6 +43,8 @@
   permission hooks restrict each role to its Tenants. System Manager is the
   global override. A migration creates the roles and reconciles memberships; the
   default Tenant cannot be disabled or deleted.
+- **My extension** page for the signed-in user's endpoint and browser-softphone
+  credentials, with the password hidden until revealed.
 - Socket.IO live updates: the ESL listener publishes call, agent and
   registration events with Tenant metadata to the owning Tenant's Admins and
   Supervisors plus System Managers; the console applies them directly and keeps

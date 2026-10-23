@@ -47,7 +47,7 @@ The UI follows a three-part layout:
 | Area | Purpose |
 |---|---|
 | Top bar | Active Tenant selector, realtime status and live refresh |
-| System tree (left) | Tenants, extensions, gateways, queues, dialplans and live views |
+| System tree (left) | My extension, Tenants, extensions, gateways, queues, dialplans and live views |
 | Tabbed workspace | Forms, DataTables and the dialplan XML preview |
 | Vue Flow canvas | Semantic call-flow editing with typed branch ports, or raw application chains |
 

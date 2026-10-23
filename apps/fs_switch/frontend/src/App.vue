@@ -19,6 +19,7 @@ import LiveRegistrations from './components/LiveRegistrations.vue'
 import LiveAgents from './components/LiveAgents.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import TenantsPanel from './components/TenantsPanel.vue'
+import MyExtensionPanel from './components/MyExtensionPanel.vue'
 
 const toast = useToast()
 const bootstrap = ref(null)
@@ -42,6 +43,7 @@ const panels = {
   channels: LiveChannels,
   registrations: LiveRegistrations,
   agents: LiveAgents,
+  my_extension: MyExtensionPanel,
   tenants: TenantsPanel,
   settings: SettingsPanel,
 }
@@ -71,6 +73,9 @@ const markUrl = '/assets/fs_switch/images/fs-switch-mark.svg'
 
 const tree = computed(() => {
   const nodes = [{ key: 'overview', label: 'Overview', icon: 'pi pi-home' }]
+  if (activeTenant.value) {
+    nodes.push({ key: 'my_extension', label: 'My extension', icon: 'pi pi-id-card' })
+  }
   if (canWrite.value || canSupervise.value) {
     const children = [{ key: 'extensions', label: 'Extensions', icon: 'pi pi-id-card' }]
     if (canWrite.value) {

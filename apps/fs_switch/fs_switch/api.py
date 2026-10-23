@@ -595,16 +595,20 @@ def get_softphone_config(tenant: str | None = None):
 		filters["tenant"] = tenant_or_default(tenant)
 	extension = frappe.db.get_value("FS Extension", filters, "name")
 	if not extension:
-		return {"enabled": 0}
+		return {"enabled": 0, "tenant": tenant_or_default(tenant) if tenant else None}
 	doc = frappe.get_doc("FS Extension", extension)
 	settings = _settings()
+	tenant_context = frappe.db.get_value("FS Tenant", doc.tenant, "default_context")
 	domain = frappe.db.get_value("FS Tenant", doc.tenant, "sip_domain") or settings.sip_domain or ""
 	return {
 		"enabled": 1,
+		"tenant": doc.tenant,
+		"context": doc.context or tenant_context or settings.default_context or "default",
 		"ws_url": settings.webrtc_url or "",
 		"domain": domain,
 		"extension": doc.extension,
 		"password": doc.get_password("sip_password", raise_exception=False) or "",
+		"agent_status": doc.agent_status or "Logged Out",
 		"display_name": doc.display_name
 		or frappe.utils.get_fullname(frappe.session.user)
 		or doc.extension,
