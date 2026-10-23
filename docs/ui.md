@@ -24,6 +24,7 @@ My extension
 Tenants
 Telephony
   Extensions
+  DIDs
   Gateways
   Queues
   Dialplans
@@ -64,6 +65,10 @@ unknown routing labels. Membership roles are:
 - **Agent** — read only their own extension; the Telephony and Live trees are
   hidden.
 
+Tenant fields also include an outbound caller ID fallback and a Tenant-specific
+music-on-hold file. The call-setup document builders use those values before
+the global Settings values.
+
 The member list is a child table. Removing a user from a Tenant or disabling the
 Tenant removes the projected `FS Switch *` role after commit.
 
@@ -74,6 +79,16 @@ extension, display name, context, SIP domain and agent status. It also shows the
 WebRTC URL and the SIP password behind a **Reveal** button. The endpoint returns
 credentials only to the extension owner, and a user without an extension sees a
 clear empty state.
+
+## DIDs workspace
+
+The DIDs table is the Tenant’s inbound-number inventory. Each row stores the
+normalized carrier number, Tenant, enabled flag, an optional assigned Flow and a
+description. The assigned Flow is informational: FreeSWITCH still matches the
+Flow’s destination pattern, so keep the number and pattern aligned.
+
+Tenant Admins can create, edit and delete DIDs. Supervisors get a read-only
+view. DIDs are fixed to their Tenant after creation.
 
 ## Extension workspace
 

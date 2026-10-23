@@ -27,6 +27,7 @@ item into a plan when it becomes the next slice.
 - Media library, TTS/ASR and AI-agent nodes.
 - Per-Tenant uniqueness for extension numbers, queue names, gateway names and
   Flow titles.
+- Broader Tenant settings for recording policy, voicemail defaults and quotas.
 - Import/export of dialplan graphs.
 
 ## Known limitations

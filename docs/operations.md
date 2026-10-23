@@ -86,9 +86,17 @@ among enabled Tenants.
   default_tenant**. The default Tenant cannot be disabled or deleted. On a fresh
   install, `FS_SWITCH_DEFAULT_TENANT` names the first Tenant; on an existing
   site the slug must already exist.
+- Tenant-level outbound caller ID and music-on-hold override the global
+  Settings values when present.
 
 A Flow context must match its Tenant's default context. Otherwise the compiled
 Flow would be stored under a Tenant that the request cannot reach.
+
+Assign inbound numbers in **DIDs**. The inventory is assigned to a Tenant and
+optionally to the Flow expected to handle the number. The assignment is
+informational; actual routing still comes from the Flow destination pattern.
+Normalize numbers the way the carrier sends them: the `DID` document removes
+spaces, hyphens and an optional `tel:` prefix but keeps a leading `+`.
 
 FreeSWITCH's `callcenter.conf` configuration request is global rather than
 context-scoped, so `serve_callcenter()` builds one document for every enabled

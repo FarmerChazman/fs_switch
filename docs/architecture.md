@@ -122,9 +122,10 @@ Published pointer to an earlier version without overwriting the Draft. A
 Draft-versus-Published diff compares graph identity and the compiled XML before
 publish; it is read-only.
 
-Tenant scope is carried on Flows, extensions, queues and gateways. The default
-Tenant is created on install and upgrade. A document's Tenant is fixed after
-creation. The directory, dialplan and callcenter documents are filtered by
+Tenant scope is carried on Flows, DIDs, extensions, queues and gateways. The
+default Tenant is created on install and upgrade. A document's Tenant is fixed
+after creation. DIDs are an inventory and optional Flow assignment; the
+destination pattern remains the routing source of truth. The directory, dialplan and callcenter documents are filtered by
 tenant; the served dialplan uses `published_tenant`, not the Draft tenant. A
 Flow's context must match its Tenant's default context.
 

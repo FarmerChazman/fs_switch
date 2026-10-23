@@ -14,6 +14,7 @@ after_migrate = "fs_switch.tenants.after_migrate"
 permission_query_conditions = {
 	"FS Tenant": "fs_switch.permissions.tenant_query_conditions",
 	"FS Dialplan": "fs_switch.permissions.scoped_query_conditions",
+	"FS DID": "fs_switch.permissions.scoped_query_conditions",
 	"FS Extension": "fs_switch.permissions.scoped_query_conditions",
 	"FS Gateway": "fs_switch.permissions.scoped_query_conditions",
 	"FS Queue": "fs_switch.permissions.scoped_query_conditions",
@@ -22,6 +23,7 @@ permission_query_conditions = {
 has_permission = {
 	"FS Tenant": "fs_switch.permissions.tenant_doctype_has_permission",
 	"FS Dialplan": "fs_switch.permissions.tenant_has_permission",
+	"FS DID": "fs_switch.permissions.tenant_has_permission",
 	"FS Extension": "fs_switch.permissions.extension_has_permission",
 	"FS Gateway": "fs_switch.permissions.tenant_has_permission",
 	"FS Queue": "fs_switch.permissions.tenant_has_permission",

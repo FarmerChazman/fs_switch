@@ -181,7 +181,7 @@ For the product:
 | **0** | Foundation | Product brief, ADRs, semantic schema v1, compiler and tests. |
 | **1** | Semantic editor | Node palette, property drawer, ports, validation panel, XML preview. |
 | **2** | Safe publishing | Draft/published versions, rollback, call-setup cache, last-known-good, reload, route simulator and Draft-versus-Published diff are in place. |
-| **3** | Tenant layer | Tenant UI, domain/context mapping, membership roles and row-level Tenant isolation are in place. |
+| **3** | Tenant layer | Tenant UI, domain/context mapping, membership roles, DID inventory and row-level Tenant isolation are in place. |
 | **4** | Carrier layer | Gateway templates, failover and LCR/rate decks. |
 | **5** | Live workspace | Socket.IO call, agent and registration events, Tenant-filtered live state and supervisor actions. |
 | **6** | Endpoint layer | Embedded softphone, presence, screen pop and call controls. |

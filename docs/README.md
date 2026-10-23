@@ -10,6 +10,7 @@ overview. This page is the map for the rest of the documentation.
 |---|---|
 | [`../README.md`](../README.md) | You want to install FS Switch, understand the feature set or find the quick start. |
 | [`PRODUCT.md`](PRODUCT.md) | You need the product direction, personas and scope. |
+| [`STATUS.md`](STATUS.md) | You need the current build status against the original source documents. |
 | [`architecture.md`](architecture.md) | You need the control-plane/data-plane boundaries, cache or live-event design. |
 | [`flow-model.md`](flow-model.md) | You are changing the Flow graph, node registry, compiler, simulator, publish lifecycle or diff. |
 | [`ui.md`](ui.md) | You are changing the console layout, semantic canvas, live views or publish/diff UI. |
@@ -22,8 +23,9 @@ overview. This page is the map for the rest of the documentation.
 The root README covers Docker and existing-bench installation. In day-to-day
 operation:
 
-1. Create or edit Tenants, Flows, extensions, queues and gateways in Frappe or
-   the console. Tenant membership controls who can see and change them.
+1. Create or edit Tenants, DIDs, Flows, extensions, queues and gateways in
+   Frappe or the console. Tenant membership controls who can see and change
+   them.
 2. Validate the Flow. The semantic editor blocks save until every non-terminal
    output is connected.
 3. Publish. XML-curl serves only the Published version; saving a Draft does not

@@ -14,6 +14,7 @@ import ExtensionsPanel from './components/ExtensionsPanel.vue'
 import GatewaysPanel from './components/GatewaysPanel.vue'
 import QueuesPanel from './components/QueuesPanel.vue'
 import DialplansPanel from './components/DialplansPanel.vue'
+import DidsPanel from './components/DidsPanel.vue'
 import LiveChannels from './components/LiveChannels.vue'
 import LiveRegistrations from './components/LiveRegistrations.vue'
 import LiveAgents from './components/LiveAgents.vue'
@@ -40,6 +41,7 @@ const panels = {
   gateways: GatewaysPanel,
   queues: QueuesPanel,
   dialplans: DialplansPanel,
+  dids: DidsPanel,
   channels: LiveChannels,
   registrations: LiveRegistrations,
   agents: LiveAgents,
@@ -77,7 +79,10 @@ const tree = computed(() => {
     nodes.push({ key: 'my_extension', label: 'My extension', icon: 'pi pi-id-card' })
   }
   if (canWrite.value || canSupervise.value) {
-    const children = [{ key: 'extensions', label: 'Extensions', icon: 'pi pi-id-card' }]
+    const children = [
+      { key: 'extensions', label: 'Extensions', icon: 'pi pi-id-card' },
+      { key: 'dids', label: 'DIDs', icon: 'pi pi-hashtag' },
+    ]
     if (canWrite.value) {
       children.push(
         { key: 'gateways', label: 'Gateways', icon: 'pi pi-cloud' },

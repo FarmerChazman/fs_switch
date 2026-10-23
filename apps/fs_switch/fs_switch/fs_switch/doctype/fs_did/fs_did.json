@@ -1,0 +1,39 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-10-23 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "number",
+  "tenant",
+  "enabled",
+  "flow",
+  "description"
+ ],
+ "fields": [
+  {"fieldname": "number", "fieldtype": "Data", "label": "DID / inbound number", "reqd": 1, "unique": 1, "in_list_view": 1, "search_index": 1, "description": "Carrier dialable number. Spaces, hyphens and an optional tel: prefix are removed."},
+  {"fieldname": "tenant", "fieldtype": "Link", "label": "Tenant", "options": "FS Tenant", "default": "default", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1, "description": "Tenant scope. Fixed after creation."},
+  {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},
+  {"fieldname": "flow", "fieldtype": "Link", "label": "Assigned Flow", "options": "FS Dialplan", "description": "The Flow expected to handle this number. Routing still matches the Flow destination pattern.", "in_list_view": 1},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "FS Switch",
+ "name": "FS DID",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "FS Switch Admin", "share": 1, "write": 1},
+  {"email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "FS Switch Supervisor"}
+ ],
+ "search_fields": "number,tenant",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "number",
+ "track_changes": 1
+}

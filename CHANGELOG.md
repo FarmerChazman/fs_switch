@@ -43,6 +43,10 @@
   permission hooks restrict each role to its Tenants. System Manager is the
   global override. A migration creates the roles and reconciles memberships; the
   default Tenant cannot be disabled or deleted.
+- DID inventory (`FS DID`) with Tenant scope, normalized inbound numbers,
+  enabled state, optional assigned Flow and description.
+- Tenant-level outbound caller ID and music-on-hold overrides, used by the
+  directory and callcenter document builders.
 - **My extension** page for the signed-in user's endpoint and browser-softphone
   credentials, with the password hidden until revealed.
 - Socket.IO live updates: the ESL listener publishes call, agent and

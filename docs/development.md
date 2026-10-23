@@ -23,6 +23,7 @@ Run `migrate` after pulling changes that add DocType fields, patches or a new
 schema. The migration:
 
 - creates the configured default Tenant if it is missing,
+- syncs the Tenant, DID and Tenant Member DocTypes,
 - creates `FS Switch Admin`, `FS Switch Supervisor` and `FS Switch Agent`,
 - backfills `tenant` on existing Flows, extensions, queues and gateways,
 - backfills `published_tenant` on already-published Flows,
@@ -86,8 +87,8 @@ git diff --check
 ```
 
 `pytest tests` is also supported. The compiler, publish, call-setup, route
-simulator, diff, Tenant mapping and ESL listener tests run without a Frappe
-site. DocType validation, permission hooks, patches, XML-curl handlers,
+simulator, diff, Tenant mapping, DID normalization and ESL listener tests run
+without a Frappe site. DocType validation, permission hooks, patches, XML-curl handlers,
 Socket.IO authentication and the console need a live bench for end-to-end
 verification.
 

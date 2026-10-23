@@ -25,7 +25,7 @@ from fs_switch.tenants import (
 )
 
 TENANT_DOCTYPE = "FS Tenant"
-TENANT_SCOPED = ("FS Dialplan", "FS Extension", "FS Gateway", "FS Queue")
+TENANT_SCOPED = ("FS Dialplan", "FS DID", "FS Extension", "FS Gateway", "FS Queue")
 
 
 def _user(user=None):

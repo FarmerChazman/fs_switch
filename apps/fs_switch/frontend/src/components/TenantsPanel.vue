@@ -36,6 +36,8 @@ function blankTenant() {
     enabled: 1,
     sip_domain: '',
     default_context: '',
+    outbound_caller_id: '',
+    hold_music_file: '',
     description: '',
     members: [],
   }
@@ -109,6 +111,8 @@ async function save() {
     enabled: form.value.enabled ? 1 : 0,
     sip_domain: (form.value.sip_domain || '').trim().toLowerCase(),
     default_context: form.value.default_context.trim().toLowerCase(),
+    outbound_caller_id: (form.value.outbound_caller_id || '').trim(),
+    hold_music_file: (form.value.hold_music_file || '').trim(),
     description: form.value.description || '',
     members,
   }
@@ -242,6 +246,22 @@ onMounted(load)
         <div class="fs-field">
           <label for="tenant-context">Default context</label>
           <InputText id="tenant-context" v-model="form.default_context" placeholder="acme" />
+        </div>
+        <div class="fs-field">
+          <label for="tenant-caller-id">Outbound caller ID</label>
+          <InputText
+            id="tenant-caller-id"
+            v-model="form.outbound_caller_id"
+            placeholder="+14155550100"
+          />
+        </div>
+        <div class="fs-field">
+          <label for="tenant-moh">Music on hold</label>
+          <InputText
+            id="tenant-moh"
+            v-model="form.hold_music_file"
+            placeholder="local_stream://moh"
+          />
         </div>
         <div class="fs-field">
           <label>Enabled</label>

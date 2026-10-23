@@ -3,8 +3,8 @@
 **A FreeSWITCH control plane for Frappe.**
 
 FS Switch is an open-source Frappe app and Vue 3 console for managing a
-FreeSWITCH deployment: extensions, gateways, call-center queues, dialplans,
-live channels, registrations and agents. Configuration lives in MariaDB and is
+FreeSWITCH deployment: DIDs, extensions, gateways, call-center queues,
+dialplans, live channels, registrations and agents. Configuration lives in MariaDB and is
 served to FreeSWITCH through `mod_xml_curl`; live state is read over the
 FreeSWITCH Event Socket Layer (ESL).
 
@@ -47,7 +47,7 @@ The UI follows a three-part layout:
 | Area | Purpose |
 |---|---|
 | Top bar | Active Tenant selector, realtime status and live refresh |
-| System tree (left) | My extension, Tenants, extensions, gateways, queues, dialplans and live views |
+| System tree (left) | My extension, Tenants, extensions, DIDs, gateways, queues, dialplans and live views |
 | Tabbed workspace | Forms, DataTables and the dialplan XML preview |
 | Vue Flow canvas | Semantic call-flow editing with typed branch ports, or raw application chains |
 
@@ -65,6 +65,7 @@ flow schema and compiler are documented in
 
 - [`docs/README.md`](docs/README.md) — documentation index and operating notes
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — product direction and scope
+- [`docs/STATUS.md`](docs/STATUS.md) — current status against the original source documents
 - [`docs/architecture.md`](docs/architecture.md) — control-plane/data-plane design
 - [`docs/flow-model.md`](docs/flow-model.md) — Flow schema, compiler, simulator, publish and diff
 - [`docs/ui.md`](docs/ui.md) — console layout and editor behaviour
@@ -170,7 +171,10 @@ console, or in Desk, before assigning their documents.
    live operations; an Agent sees only their own extension.
 5. Add an **FS Gateway** for your carrier, an **FS Extension** per user, and an
    **FS Queue** for each ring group. New documents default to the active Tenant.
-6. Create an **FS Dialplan**, build the call flow in the visual editor and
+6. Add your inbound numbers in **DIDs** and optionally assign each to a Flow.
+   The DID inventory is informational; the Flow destination pattern still does
+   the routing.
+7. Create an **FS Dialplan**, build the call flow in the visual editor and
    publish it. A Flow's context must match its Tenant's default context.
 
 The container entrypoint writes the matching FreeSWITCH settings from `.env`.

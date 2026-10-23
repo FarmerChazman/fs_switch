@@ -423,6 +423,7 @@ def _build_dialplan(frappe, tenant: str) -> str:
 def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
 	tenant_context = _tenant_context(frappe, tenant, settings)
+	tenant_caller_id = _tenant_field(frappe, tenant, "outbound_caller_id")
 	users = []
 	for row in frappe.get_all(
 		"FS Extension",
@@ -444,7 +445,7 @@ def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 			"<variables>"
 			f'<variable name="user_context" value={_attr(context)}/>'
 			f'<variable name="effective_caller_id_name" value={_attr(full_name or doc.extension)}/>'
-			f'<variable name="effective_caller_id_number" value={_attr(doc.caller_id_number or doc.extension)}/>'
+			f'<variable name="effective_caller_id_number" value={_attr(doc.caller_id_number or doc.outbound_caller_id or tenant_caller_id or doc.extension)}/>'
 			"</variables></user>"
 		)
 
@@ -462,7 +463,6 @@ def _build_directory(frappe, tenant: str, domain: str | None) -> str:
 
 def _build_callcenter(frappe, tenant: str | None = None) -> str:
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
-	hold = settings.hold_music_file or "local_stream://moh"
 	if tenant:
 		tenants = [(tenant_or_default(tenant), _tenant_context(frappe, tenant, settings))]
 	else:
@@ -493,6 +493,11 @@ def _build_callcenter(frappe, tenant: str | None = None) -> str:
 	queues, tiers, agents = [], [], []
 	for tenant_name, context in tenants:
 		domain = _tenant_domain(frappe, tenant_name, settings) or "$${domain}"
+		hold = (
+			_tenant_field(frappe, tenant_name, "hold_music_file")
+			or settings.hold_music_file
+			or "local_stream://moh"
+		)
 		used_extensions = set()
 		for row in frappe.get_all(
 			"FS Queue",
