@@ -28,7 +28,10 @@ ENV HOME=/home/frappe \
 WORKDIR /home/frappe/fs-switch
 COPY --chown=frappe:frappe . /home/frappe/fs-switch
 RUN mkdir -p /home/frappe/fs-switch/logs \
-    && bash setup_bench.sh
+    && bash setup_bench.sh \
+    && cd /home/frappe/fs-switch/apps/fs_switch/frontend \
+    && npm ci --no-audit --no-fund \
+    && npm run build
 
 EXPOSE 8000 9000
 ENTRYPOINT ["bash", "/home/frappe/fs-switch/docker/frappe/entrypoint.sh"]

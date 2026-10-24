@@ -24,6 +24,17 @@ deployment.
 - No second backend and no second authentication system.
 - Python-side validation and compilation.
 
+### Container images
+
+- The Frappe image builds the Vue console and carries the app source.
+- On an existing site volume, the entrypoint syncs the bench app to the image
+  source, registers it and runs `bench migrate` before starting.
+- The FreeSWITCH image copies project config after the source compile so
+  config-only rebuilds reuse the cached build.
+- Rebuilt local images were recreated and smoke-tested: console assets returned
+  200, XML-curl returned 200, ESL was connected, extension `7101` registered
+  over WebRTC, and a call to the acceptance DID reached the answer/hangup flow.
+
 ### Flow model and compiler
 
 - Semantic graph format plus the raw FreeSWITCH application escape hatch.

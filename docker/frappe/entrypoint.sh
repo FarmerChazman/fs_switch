@@ -24,13 +24,27 @@ bench set-config -g webserver_port 8000
 bench set-config -g socketio_port 9000
 
 # The site lives in a persistent volume; the app source lives in the image.
-# Recreate the source directory when a container is replaced on an upgrade.
-if [ -d "sites/$FS_SWITCH_SITE" ] && [ ! -d "apps/fs_switch" ]; then
-  echo "restoring FS Switch app source"
+# On an upgrade, replace the bench copy with the image's current source so the
+# new Python code and built console assets are used with the existing site.
+if [ -d "sites/$FS_SWITCH_SITE" ]; then
+  echo "syncing FS Switch app source"
+  rm -rf apps/fs_switch
   cp -r "$FS_SWITCH_ROOT/apps/fs_switch" apps/
-fi
+  rm -rf apps/fs_switch/frontend/node_modules
 
-if [ ! -d "sites/$FS_SWITCH_SITE" ]; then
+  env/bin/python - <<'PY'
+from pathlib import Path
+p = Path("sites/apps.txt")
+apps = [a.strip() for a in p.read_text().splitlines() if a.strip()]
+if "fs_switch" not in apps:
+    apps.append("fs_switch")
+    p.write_text("\n".join(apps) + "\n")
+PY
+  if ! env/bin/python -c "import fs_switch" >/dev/null 2>&1; then
+    uv pip install --python env/bin/python -e apps/fs_switch
+  fi
+  bench --site "$FS_SWITCH_SITE" migrate
+else
   echo "first start: creating site, installing FS Switch and building the console"
   bash "$FS_SWITCH_ROOT/setup_apps.sh"
 fi

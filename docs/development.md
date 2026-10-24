@@ -119,11 +119,18 @@ docker compose up -d --build
 docker compose logs -f frappe
 ```
 
+The Frappe image builds the Vue console and carries the app source. On an
+existing site volume, the entrypoint replaces the bench app copy with the image
+source, registers the app if needed, and runs `bench migrate`. Rebuilding the
+image and recreating the container therefore updates Python code and console
+assets without touching the site volume.
+
 The FreeSWITCH image compiles FreeSWITCH from source. Rebuilds are cached; the
-first build is the slow one. The compose file publishes the console on port 8000
-and Socket.IO on port 9000. It does not publish the ESL port. If the default
-RTP range is already bound on the host, set `FS_SWITCH_RTP_START` and
-`FS_SWITCH_RTP_END` to a free range.
+first build is the slow one. The Dockerfile copies the project config after the
+compile so a config-only change reuses the cached FreeSWITCH layer. The compose
+file publishes the console on port 8000 and Socket.IO on port 9000. It does not
+publish the ESL port. If the default RTP range is already bound on the host, set
+`FS_SWITCH_RTP_START` and `FS_SWITCH_RTP_END` to a free range.
 
 ## FreeSWITCH config
 

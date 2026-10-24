@@ -263,6 +263,18 @@ Multi-Tenant and supervisor monitoring:
   Actual in-console audio playback is still pending because the console has no
   embedded softphone yet.
 
+Container rebuild:
+
+- The Frappe image contains the current Python source and built console assets;
+  on the existing site volume the entrypoint synced the app and ran
+  `bench migrate` without losing the acceptance data.
+- `/assets/fs_switch/console/index.html` and `assets/app.js` returned 200.
+- ESL reported connected; XML-curl requests returned 200.
+- Extension `7101` registered over `ws://localhost:5066` after the rebuild, and
+  a call to `14155550101` reached the published answer/hangup flow.
+- The `webrtc` profile in the recreated FreeSWITCH container contained
+  `dtmf-type=info`, `liberal-dtmf=true` and `apply-candidate-acl=rfc1918.auto`.
+
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The
 handler-level cache and secret hash are still useful, but they are not a full
