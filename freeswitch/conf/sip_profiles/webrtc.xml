@@ -16,6 +16,8 @@
     <param name="ext-sip-ip" value="auto-nat"/>
     <param name="auth-calls" value="true"/>
     <param name="auth-all-packets" value="false"/>
+    <param name="dtmf-type" value="info"/>
+    <param name="liberal-dtmf" value="true"/>
     <param name="apply-inbound-acl" value="any"/>
     <!-- Local Docker/host browsers advertise RFC1918 ICE candidates. Use a
          WAN or TURN relay candidate ACL in internet-facing deployments. -->

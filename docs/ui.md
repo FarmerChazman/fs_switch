@@ -188,9 +188,11 @@ show the Draft/Published tag and a Publish action in the toolbar.
 - **Channels** — `show channels as json`, with hangup and transfer actions.
 - **Registrations** — `show registrations as json`.
 - **Agents** — `callcenter_config agent list`, with status changes.
-- **Wallboard** — queue depth from active `callcenter` channels, configured
+- **Wallboard** - queue depth from active `callcenter` channels, configured
   waits, answered/abandoned counters, agent availability and active call paths.
-  It refreshes the live snapshot every 10 seconds while open.
+  It refreshes the live snapshot every 10 seconds while open. A supervisor can
+  **Listen**, **Whisper** or **Barge** from a call path; the action rings the
+  supervisor's own extension and starts a FreeSWITCH eavesdrop leg.
 
 The console takes one snapshot, then connects to the site's Socket.IO namespace
 and applies `fs_switch_call`, `fs_switch_agent` and `fs_switch_registration`

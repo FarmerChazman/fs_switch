@@ -52,7 +52,9 @@ handler falls back to `Caller-Context`/`Hunt-Context` and
 `variable_domain_name`. The browser `webrtc` profile uses a generic `default`
 context; the Tenant's compiled context is aliased into that name for the first
 INVITE, while internal transfers keep the real Tenant context. Local WebRTC
-media needs `apply-candidate-acl = rfc1918.auto` in the profile.
+media needs `apply-candidate-acl = rfc1918.auto` in the profile. The profile
+uses INFO DTMF with liberal DTMF enabled so browser softphones can drive menu
+nodes.
 
 ### ESL listener
 

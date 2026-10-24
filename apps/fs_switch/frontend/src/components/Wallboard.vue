@@ -1,12 +1,17 @@
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Tag from 'primevue/tag'
 
+import { api } from '../api'
+
 const props = defineProps({
   live: { type: Object, default: null },
   tenant: { type: String, default: '' },
+  canSupervise: Boolean,
+  notify: { type: Function, required: true },
   refreshLive: { type: Function, required: true },
 })
 
@@ -17,7 +22,25 @@ const metrics = computed(() => summary.value.metrics || {})
 const queues = computed(() => summary.value.queues || [])
 const calls = computed(() => summary.value.calls || [])
 
+const busy = ref('')
 let refreshTimer = null
+
+async function eavesdrop(call, mode) {
+  if (!call.uuid || busy.value) return
+  busy.value = `${call.uuid}:${mode}`
+  try {
+    await api.action('eavesdrop', {
+      uuid: call.uuid,
+      mode,
+      tenant: props.tenant,
+    })
+    props.notify(`Ringing your extension to ${mode} this call.`)
+  } catch (error) {
+    props.notify(error.message, 'error')
+  } finally {
+    busy.value = ''
+  }
+}
 
 function formatDuration(seconds) {
   const value = Number(seconds) || 0
@@ -178,6 +201,37 @@ onUnmounted(() => {
           </Column>
           <Column field="wait_seconds" header="Wait" style="width: 100px">
             <template #body="{ data }">{{ formatDuration(data.wait_seconds) }}</template>
+          </Column>
+          <Column v-if="canSupervise" header="Monitor" style="width: 210px">
+            <template #body="{ data }">
+              <div style="display: flex; gap: 2px; justify-content: flex-end">
+                <Button
+                  label="Listen"
+                  size="small"
+                  text
+                  :loading="busy === `${data.uuid}:listen`"
+                  :disabled="Boolean(busy)"
+                  @click="eavesdrop(data, 'listen')"
+                />
+                <Button
+                  label="Whisper"
+                  size="small"
+                  text
+                  :loading="busy === `${data.uuid}:whisper`"
+                  :disabled="Boolean(busy)"
+                  @click="eavesdrop(data, 'whisper')"
+                />
+                <Button
+                  label="Barge"
+                  size="small"
+                  text
+                  severity="danger"
+                  :loading="busy === `${data.uuid}:barge`"
+                  :disabled="Boolean(busy)"
+                  @click="eavesdrop(data, 'barge')"
+                />
+              </div>
+            </template>
           </Column>
         </DataTable>
       </div>

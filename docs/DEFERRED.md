@@ -9,15 +9,15 @@ The local Docker acceptance run passed migration, role projection, tenant row
 isolation, DID creation, publishing, XML-curl cold/warm requests, Socket.IO
 authentication and delivery, ESL live data and agent status changes. Remaining:
 
-- Lab-test the menu digit branch, loop and real SIP INFO/DTMF input. Real
-  WebRTC registration, timeout routing, queue transfer and variable persistence
-  passed.
-- Lab-test multi-Tenant `callcenter.conf` queues and agents with a real call.
-- Loopback `CHANNEL_STATE` fan-out through ESL listener and Socket.IO passed;
-  real SIP call and queue events reached the wallboard snapshot; registration
-  events still need a real multi-Tenant pass.
-- Verify a Supervisor in one Tenant cannot see or act on another Tenant's live
-  channels or agents with real calls.
+Real WebRTC registration, timeout routing, menu digit, loop, queue transfer,
+variable persistence, multi-Tenant queue calls and supervisor monitor actions
+passed. Remaining:
+
+- Real registration event fan-out with multiple Tenants.
+- Simultaneous multi-Tenant calls with Socket.IO recipient isolation.
+- Verify a Supervisor in one Tenant cannot act on another Tenant's live
+  channels or agents; API live-data isolation passed with an Acceptance B
+  queue call.
 
 ## Next slices
 

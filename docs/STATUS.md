@@ -118,12 +118,14 @@ Have:
 - Self-service Available / On Break / Logged Out status from **My extension**.
 - Supervisor wallboard with queue depth, wait, answer/abandon counters, agent
   availability and active call paths.
+- Supervisor listen, whisper and barge; the action rings the supervisor's own
+  extension and runs an eavesdrop leg with the selected audio mix.
 
 Missing:
 
 - Hold-time history and per-agent daily metrics.
 - Push updates for queue metrics; the wallboard refreshes every 10 seconds.
-- Supervisor listen / whisper / barge.
+- In-console monitor audio; supervisor monitoring uses their own SIP endpoint.
 - Call-path highlighting on the flow canvas.
 - Queue events beyond agent status changes.
 
@@ -196,12 +198,16 @@ Have:
   counters, available/busy agents and active call paths.
 - Queue depth from active callcenter channels and wallboard summary in the live
   snapshot.
+- Real multi-Tenant queue call: Acceptance B queue `accept_support_b` bridged
+  to extension `7201`; Acceptance A live data stayed empty.
+- Supervisor monitor actions: Listen, Whisper and Barge originate the
+  supervisor extension with the matching eavesdrop flags.
 
 Missing:
 
-- Supervisor listen / whisper / barge.
-- Longest-wait and hold-time collection for callers when FreeSWITCH does not
-  expose queue join variables on the channel snapshot.
+- Longest-wait and hold-time history where FreeSWITCH does not expose queue join
+  variables on the channel snapshot.
+- Real Socket.IO recipient-isolation test for multiple simultaneous calls.
 - Presence and screen pop.
 - Live conference controls.
 
@@ -275,12 +281,20 @@ A local Docker acceptance run on 2026-10-23 passed:
   available/busy agents and active call paths from the live snapshot.
 - Real WebRTC call lab: extension `7101` registered over `ws://localhost:5066`;
   a call to the QA menu reached the timeout branch with `lab_stage=entered` and
-  `lab_route=timeout`; a call to the QA queue bridged to the registered agent,
+  `lab_route=timeout`; SIP INFO digit `1` took the digit branch with
+  `lab_route=digit1`; a call to the QA queue bridged to the registered agent,
   and the wallboard reported one active queue call, one answered call, and the
   queue call path.
+- A two-step `set` loop compiled and executed through repeated XML transfers
+  until the call was terminated.
+- A real Acceptance B queue call bridged to extension `7201`; Acceptance A live
+  data stayed empty while the B call was active.
+- Supervisor Listen, Whisper and Barge originated extension `7102` and created
+  `eavesdrop` channels with the expected whisper flags.
 - XML-curl now reads `Caller-Context`/`Hunt-Context` when FreeSWITCH omits the
   `context` field, and aliases the Tenant context into the WebRTC profile's
-  generic `default` context.
+  generic `default` context. The WebRTC profile accepts INFO DTMF and RFC1918
+  ICE candidates.
 
 Observed limitation:
 
@@ -291,10 +305,8 @@ Observed limitation:
 
 Still pending:
 
-- The menu digit branch, loop and real SIP INFO/DTMF input; the timeout branch,
-  queue transfer and variable persistence passed.
-- A real multi-Tenant queue call and SIP/queue event fan-out.
-- Live Tenant isolation with real SIP channels and agents.
+- Real Socket.IO recipient isolation for simultaneous multi-Tenant calls.
+- Registration event fan-out with real SIP endpoints.
 
 ### Deep interaction QA result
 
@@ -308,13 +320,14 @@ a minor warning.
 
 ## Recommended next order
 
-1. **Close residual live verification** - browser QA, a real FreeSWITCH call
-   lab and real ESL event fan-out. The checklist is in
+1. **Finish multi-Tenant live verification** - a real queue call in
+   Acceptance B, real ESL recipient isolation and event fan-out. The
+   single-Tenant browser call lab is complete; the checklist is in
    [`ACCEPTANCE.md`](ACCEPTANCE.md).
 2. **Finish the Tenant layer** - broader Tenant settings, quotas and
    provisioning.
-3. **Supervisor depth** - listen/whisper/barge, richer hold-time history and
-   agent self-service controls on top of the wallboard.
+3. **Supervisor depth** - richer hold-time history, in-console monitor audio
+   and agent self-service controls on top of the wallboard.
 4. **Embedded WebRTC softphone** - JsSIP/SIP.js, WSS, STUN/TURN, presence,
    screen pop and call controls.
 5. **Media and logic depth** — media manager, holiday calendar, collect digits,

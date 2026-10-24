@@ -425,6 +425,28 @@ def set_my_agent_status(status: str, tenant: str | None = None):
 	return {"ok": True, "esl_ok": True, "reply": reply}
 
 
+def _supervisor_endpoint(tenant):
+	"""Return the signed-in supervisor's dial string for an eavesdrop leg."""
+	name = frappe.db.get_value(
+		"FS Extension",
+		{"user": frappe.session.user, "tenant": tenant_or_default(tenant), "enabled": 1},
+		"name",
+	)
+	if not name:
+		frappe.throw(
+			"Assign an extension to your account for this Tenant to monitor calls.",
+			frappe.PermissionError,
+		)
+	doc = frappe.get_doc("FS Extension", name)
+	domain = (
+		frappe.db.get_value("FS Tenant", doc.tenant, "sip_domain")
+		or _settings().sip_domain
+	)
+	if not domain:
+		frappe.throw("Set the Tenant SIP domain before monitoring calls.")
+	return f"user/{doc.extension}@{domain}"
+
+
 @frappe.whitelist(methods=["POST"])
 def run_live_action(
 	action,
@@ -433,6 +455,7 @@ def run_live_action(
 	context=None,
 	agent=None,
 	status=None,
+	mode=None,
 	tenant=None,
 ):
 	tenant = (tenant or "").strip() or None
@@ -442,6 +465,9 @@ def run_live_action(
 	if not tenant and not is_system_manager():
 		frappe.throw("Select a Tenant before running a live action.", frappe.PermissionError)
 	_assert_live_target_tenant(tenant, uuid=uuid, agent=agent)
+	endpoint = None
+	if action == "eavesdrop":
+		endpoint = _supervisor_endpoint(tenant)
 	try:
 		reply = execute_action(
 			action,
@@ -450,6 +476,8 @@ def run_live_action(
 			context=context,
 			agent=agent,
 			status=status,
+			mode=mode,
+			endpoint=endpoint,
 		)
 	except (OSError, ValueError) as exc:
 		frappe.throw(str(exc))

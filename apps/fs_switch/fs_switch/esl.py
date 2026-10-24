@@ -251,7 +251,15 @@ def run_action(action: str, **kwargs) -> str:
 
 	Arbitrary ESL commands are deliberately not exposed to the browser.
 	"""
-	allowed = {"hangup", "transfer", "answer", "hold", "agent_status", "reload"}
+	allowed = {
+		"hangup",
+		"transfer",
+		"answer",
+		"hold",
+		"eavesdrop",
+		"agent_status",
+		"reload",
+	}
 	if action not in allowed:
 		raise ValueError(f"Unsupported action: {action}")
 
@@ -267,6 +275,23 @@ def run_action(action: str, **kwargs) -> str:
 			return esl.api(f"uuid_answer {_required(kwargs, 'uuid')}")
 		if action == "hold":
 			return esl.api(f"uuid_hold {_required(kwargs, 'uuid')}")
+		if action == "eavesdrop":
+			mode = str(kwargs.get("mode") or "listen").strip().lower()
+			flags = {
+				"listen": "",
+				"whisper": "eavesdrop_whisper_bleg=true",
+				"barge": "eavesdrop_whisper_aleg=true,eavesdrop_whisper_bleg=true",
+			}
+			if mode not in flags:
+				raise ValueError(f"Unsupported eavesdrop mode: {mode}")
+			originate_vars = "ignore_early_media=true"
+			if flags[mode]:
+				originate_vars += f",{flags[mode]}"
+			return esl.api(
+				"bgapi originate "
+				f"{{{originate_vars}}}{_required(kwargs, 'endpoint')} "
+				f"&eavesdrop({_required(kwargs, 'uuid')})"
+			)
 		if action == "agent_status":
 			status = _required(kwargs, "status")
 			if status not in ("Logged Out", "Available", "On Break"):

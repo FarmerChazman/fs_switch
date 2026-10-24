@@ -238,6 +238,9 @@ Real WebRTC call lab on 2026-10-24:
   `ws://localhost:5066` using its own `get_softphone_config` credentials.
 - A call from the browser to the QA menu (`9300`) reached the timeout branch;
   `fs_switch_flow`, `lab_stage` and `lab_route` persisted on the channel.
+- A second menu call accepted SIP INFO digit `1`; `menu_digit=1` and
+  `lab_route=digit1` proved the digit branch.
+- A two-node `set` loop executed repeated XML transfers until termination.
 - A call to the QA queue (`9400`) bridged to the registered agent. FreeSWITCH
   showed the caller and agent legs, and the wallboard reported one active call,
   one answered call and the queue call path.
@@ -245,9 +248,20 @@ Real WebRTC call lab on 2026-10-24:
   the Tenant by the authenticated user's context.
 - Local WebRTC media required `apply-candidate-acl = rfc1918.auto`; without it,
   FreeSWITCH dropped the browser's RFC1918 ICE candidates.
+- The `webrtc` profile uses INFO DTMF with liberal DTMF enabled.
 
-Still pending in the call lab: the menu digit branch, loop and SIP INFO/DTMF
-input.
+Multi-Tenant and supervisor monitoring:
+
+- Acceptance B queue `accept_support_b` bridged a real WebRTC call from
+  extension `7201`; Acceptance A live data stayed empty while the B call was
+  active.
+- The wallboard rendered Listen, Whisper and Barge actions for the active call.
+- Each action originated the supervisor extension `7102`; the resulting channel
+  ran `eavesdrop`. Whisper set `eavesdrop_whisper_bleg=true`; Barge set both
+  aleg and bleg whisper flags.
+- The wallboard UI showed the monitor actions with a valid Frappe CSRF token.
+  Actual in-console audio playback is still pending because the console has no
+  embedded softphone yet.
 
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The

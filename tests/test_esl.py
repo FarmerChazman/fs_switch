@@ -2,6 +2,7 @@ import sys
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "fs_switch"))
 
@@ -9,6 +10,7 @@ from fs_switch.esl import (  # noqa: E402
     _callcenter_rows,
     _channel_row,
     _enrich_queue_channel,
+    run_action,
 )
 
 
@@ -68,6 +70,49 @@ class ESLParserTest(unittest.TestCase):
         self.assertEqual(channel["queue"], "support@acme")
         self.assertEqual(channel["agent"], "7101@acme")
         self.assertGreaterEqual(channel["wait_seconds"], 11)
+
+    def test_eavesdrop_modes_originate_a_supervisor_leg(self):
+        class FakeESL:
+            def __init__(self):
+                self.commands = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                pass
+
+            def api(self, command):
+                self.commands.append(command)
+                return "+OK job"
+
+        fake = FakeESL()
+        with patch("fs_switch.esl.ESLConnection.from_settings", return_value=fake):
+            run_action(
+                "eavesdrop",
+                uuid="target-1",
+                endpoint="user/7102@acme.example",
+                mode="listen",
+            )
+            run_action(
+                "eavesdrop",
+                uuid="target-1",
+                endpoint="user/7102@acme.example",
+                mode="whisper",
+            )
+            run_action(
+                "eavesdrop",
+                uuid="target-1",
+                endpoint="user/7102@acme.example",
+                mode="barge",
+            )
+
+        self.assertEqual(len(fake.commands), 3)
+        self.assertIn("&eavesdrop(target-1)", fake.commands[0])
+        self.assertNotIn("eavesdrop_whisper", fake.commands[0])
+        self.assertIn("eavesdrop_whisper_bleg=true", fake.commands[1])
+        self.assertIn("eavesdrop_whisper_aleg=true", fake.commands[2])
+        self.assertIn("eavesdrop_whisper_bleg=true", fake.commands[2])
 
 
 if __name__ == "__main__":
