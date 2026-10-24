@@ -167,6 +167,19 @@ def tenant_map_from_rows(rows, default=None) -> dict:
 	}
 
 
+def resolve_tenant_for_dialplan(mapping, domain=None, context=None) -> str:
+	"""Resolve a dialplan request.
+
+	A WebRTC profile has one generic ``default`` context, while the SIP domain
+	still identifies the Tenant. Treat that generic context as non-specific and
+	let the domain select the Tenant. Explicit Tenant contexts keep priority.
+	"""
+	context_key = normalize_context(context)
+	if context_key and context_key != "default":
+		return resolve_tenant_from_map(mapping, context=context_key)
+	return resolve_tenant_from_map(mapping, domain=domain, context=None)
+
+
 def resolve_tenant_from_map(mapping, domain=None, context=None) -> str:
 	"""Resolve a routing label to a Tenant, falling back to the default Tenant.
 

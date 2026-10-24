@@ -150,6 +150,7 @@ def _wait_seconds(row: dict) -> int:
 def _channel_row(row: dict) -> dict:
 	return {
 		"uuid": row.get("uuid") or row.get("Unique-ID") or "",
+		"call_uuid": row.get("call_uuid") or "",
 		"name": row.get("name") or "",
 		"cid_name": row.get("cid_name") or "",
 		"cid_num": row.get("cid_num") or "",
@@ -178,8 +179,11 @@ def _registration_row(row: dict) -> dict:
 
 
 def _enrich_queue_channel(esl, channel: dict) -> None:
-	"""Resolve queue wait metadata for a channel running the callcenter app."""
-	if channel.get("queue") or channel.get("application") != "callcenter":
+	"""Resolve queue and wait metadata for a callcenter call or bridge leg."""
+	if channel.get("queue") or channel.get("application") not in (
+		"callcenter",
+		"uuid_bridge",
+	):
 		return
 	uuid = channel.get("uuid")
 	if not uuid:
@@ -216,6 +220,8 @@ def live_data(settings=None) -> dict:
 			queues = _callcenter_rows(esl.api("callcenter_config queue list"))
 			queue_counts = {}
 			for channel in channels:
+				if channel.get("application") != "callcenter":
+					continue
 				queue_name = str(channel.get("queue") or "").strip()
 				if queue_name:
 					queue_counts[queue_name] = queue_counts.get(queue_name, 0) + 1

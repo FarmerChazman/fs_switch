@@ -47,6 +47,13 @@ The XML-curl endpoint can be checked without FreeSWITCH once the secret is set:
 curl 'http://dev.localhost:8000/api/method/fs_switch.api.xml_curl?secret=...&section=dialplan'
 ```
 
+FreeSWITCH's dialplan request does not always send a `context` form field. The
+handler falls back to `Caller-Context`/`Hunt-Context` and
+`variable_domain_name`. The browser `webrtc` profile uses a generic `default`
+context; the Tenant's compiled context is aliased into that name for the first
+INVITE, while internal transfers keep the real Tenant context. Local WebRTC
+media needs `apply-candidate-acl = rfc1918.auto` in the profile.
+
 ### ESL listener
 
 The listener is a long-running process. Start it next to the bench:

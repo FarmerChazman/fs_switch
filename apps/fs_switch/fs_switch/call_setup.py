@@ -20,6 +20,7 @@ from types import SimpleNamespace
 from fs_switch.dialplan import NOT_FOUND_DOCUMENT, compile_published_dialplan
 from fs_switch.tenants import (
 	DEFAULT_TENANT,
+	resolve_tenant_for_dialplan,
 	resolve_tenant_from_map,
 	tenant_map_from_rows,
 	tenant_or_default,
@@ -244,13 +245,18 @@ def _document(frappe, kind: str, tenant: str, name: str) -> CachedDocument:
 	)
 
 
-def serve_dialplan(context=None) -> str:
+def serve_dialplan(context=None, domain=None) -> str:
 	"""Return the published dialplan document from cache."""
 	frappe = _frappe()
-	context = _text(context) or "default"
-	tenant = resolve_tenant(context=context)
-	document = _document(frappe, "dialplan", tenant, context)
-	return document.serve(lambda: _build_dialplan(frappe, tenant))
+	requested_context = _text(context) or "default"
+	mapping = _tenant_map(frappe)
+	tenant = resolve_tenant_for_dialplan(
+		mapping, domain=domain, context=requested_context
+	)
+	document = _document(frappe, "dialplan", tenant, requested_context)
+	return document.serve(
+		lambda: _build_dialplan(frappe, tenant, requested_context=requested_context)
+	)
 
 
 def serve_directory(domain=None) -> str:
@@ -389,7 +395,7 @@ def _tenant_domain(frappe, tenant: str, settings=None) -> str:
 	return _text(value) or _text(getattr(settings, "sip_domain", None))
 
 
-def _build_dialplan(frappe, tenant: str) -> str:
+def _build_dialplan(frappe, tenant: str, requested_context: str | None = None) -> str:
 	"""Compile only published XML for one tenant into the whole dialplan document."""
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
 	plans = frappe.get_all(
@@ -418,7 +424,12 @@ def _build_dialplan(frappe, tenant: str) -> str:
 		for row in plans
 		if row.published_xml
 	]
-	return compile_published_dialplan(published, settings)
+	return compile_published_dialplan(
+		published,
+		settings,
+		alias_context=requested_context,
+		alias_source=_tenant_context(frappe, tenant, settings),
+	)
 
 
 def _build_directory(frappe, tenant: str, domain: str | None) -> str:

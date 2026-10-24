@@ -77,10 +77,20 @@ def xml_curl():
 	"""Entry point for FreeSWITCH's mod_xml_curl bindings."""
 	_check_secret()
 	section = frappe.form_dict.get("section")
+	context = (
+		frappe.form_dict.get("context")
+		or frappe.form_dict.get("Caller-Context")
+		or frappe.form_dict.get("Hunt-Context")
+	)
+	domain = (
+		frappe.form_dict.get("domain")
+		or frappe.form_dict.get("variable_domain_name")
+		or frappe.form_dict.get("variable_sip_from_host")
+	)
 	if section == "directory":
-		_xml_response(_serve(serve_directory, frappe.form_dict.get("domain")))
+		_xml_response(_serve(serve_directory, domain))
 	elif section == "dialplan":
-		_xml_response(_serve(serve_dialplan, frappe.form_dict.get("context")))
+		_xml_response(_serve(serve_dialplan, context, domain))
 	elif section == "configuration" and frappe.form_dict.get("key_value") == "callcenter.conf":
 		_xml_response(_serve(serve_callcenter, frappe.form_dict.get("context")))
 	else:

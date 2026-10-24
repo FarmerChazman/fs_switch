@@ -137,7 +137,13 @@ def inbound_pattern(did: str) -> str:
 	return r"^\+?" + digits + r"$"
 
 
-def _assemble_dialplan(contexts: dict[str, list[str]], settings, context: str) -> str:
+def _assemble_dialplan(
+	contexts: dict[str, list[str]],
+	settings,
+	context: str,
+	alias_context: str | None = None,
+	alias_source: str | None = None,
+) -> str:
 	"""Wrap compiled extension blocks in the mod_xml_curl dialplan document."""
 	if getattr(settings, "allow_internal_calls", 1):
 		contexts.setdefault(context, []).append(
@@ -163,6 +169,17 @@ def _assemble_dialplan(contexts: dict[str, list[str]], settings, context: str) -
 
 	if not contexts:
 		return NOT_FOUND_DOCUMENT
+
+	# A browser WebRTC profile has one generic ``default`` context. Alias the
+	# Tenant's compiled context into that name so the initial INVITE can find
+	# the Flow, while internal transfers keep the real Tenant context.
+	if (
+		alias_context
+		and alias_source
+		and alias_context != alias_source
+		and alias_source in contexts
+	):
+		contexts.setdefault(alias_context, []).extend(contexts[alias_source])
 
 	# Put the default context first for readability; the rest keep insertion order.
 	ordered = sorted(contexts, key=lambda name: (name != context, name))
@@ -198,7 +215,12 @@ def compile_dialplan(plans: list, settings) -> str:
 	return _assemble_dialplan(contexts, settings, context)
 
 
-def compile_published_dialplan(plans: list, settings) -> str:
+def compile_published_dialplan(
+	plans: list,
+	settings,
+	alias_context: str | None = None,
+	alias_source: str | None = None,
+) -> str:
 	"""Build the call-setup dialplan from published XML only.
 
 	plans are FS Dialplan rows carrying published_xml, published_context and
@@ -220,4 +242,10 @@ def compile_published_dialplan(plans: list, settings) -> str:
 		)
 		contexts.setdefault(plan_context, []).append(xml)
 
-	return _assemble_dialplan(contexts, settings, context)
+	return _assemble_dialplan(
+		contexts,
+		settings,
+		context,
+		alias_context=alias_context,
+		alias_source=alias_source,
+	)

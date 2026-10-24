@@ -123,7 +123,9 @@ FS_SWITCH_DEFAULT_CONTEXT=default
 ```
 
 Use `ws://` locally: the container creates a self-signed certificate that a
-browser will not trust for `wss://`.
+browser will not trust for `wss://`. The local `webrtc` profile accepts RFC1918
+ICE candidates; internet-facing deployments should use a WAN or TURN relay
+candidate ACL instead.
 
 ## Running on an existing bench
 

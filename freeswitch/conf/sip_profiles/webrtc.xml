@@ -17,6 +17,9 @@
     <param name="auth-calls" value="true"/>
     <param name="auth-all-packets" value="false"/>
     <param name="apply-inbound-acl" value="any"/>
+    <!-- Local Docker/host browsers advertise RFC1918 ICE candidates. Use a
+         WAN or TURN relay candidate ACL in internet-facing deployments. -->
+    <param name="apply-candidate-acl" value="rfc1918.auto"/>
     <param name="inbound-codec-prefs" value="OPUS,PCMU,PCMA,VP8"/>
     <param name="outbound-codec-prefs" value="OPUS,PCMU,PCMA,VP8"/>
     <param name="rtp-timeout-sec" value="300"/>

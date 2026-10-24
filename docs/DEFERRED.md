@@ -9,11 +9,13 @@ The local Docker acceptance run passed migration, role projection, tenant row
 isolation, DID creation, publishing, XML-curl cold/warm requests, Socket.IO
 authentication and delivery, ESL live data and agent status changes. Remaining:
 
-- Lab-test generated semantic XML in FreeSWITCH: menu, timeout, loop, queue
-  transfer and variable persistence across transfers.
+- Lab-test the menu digit branch, loop and real SIP INFO/DTMF input. Real
+  WebRTC registration, timeout routing, queue transfer and variable persistence
+  passed.
 - Lab-test multi-Tenant `callcenter.conf` queues and agents with a real call.
 - Loopback `CHANNEL_STATE` fan-out through ESL listener and Socket.IO passed;
-  still verify event delivery for real SIP calls, queue calls and registrations.
+  real SIP call and queue events reached the wallboard snapshot; registration
+  events still need a real multi-Tenant pass.
 - Verify a Supervisor in one Tenant cannot see or act on another Tenant's live
   channels or agents with real calls.
 

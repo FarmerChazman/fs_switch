@@ -14,6 +14,7 @@ from fs_switch.tenants import (  # noqa: E402
     tenant_map_from_rows,
     tenant_or_default,
     tenant_scoped_name,
+    resolve_tenant_for_dialplan,
 )
 
 
@@ -119,6 +120,25 @@ class TenantMappingTest(unittest.TestCase):
         self.assertEqual(resolve_tenant_from_map(mapping, domain="ACME.EXAMPLE:5060"), "acme")
         self.assertEqual(resolve_tenant_from_map(mapping, context="unknown"), "fallback")
         self.assertEqual(resolve_tenant_from_map(None, domain="unknown"), DEFAULT_TENANT)
+
+    def test_generic_default_context_uses_the_domain_for_webrtc_calls(self):
+        mapping = {
+            "default": "default",
+            "domains": {"accept-a.localhost": "accept-a"},
+            "contexts": {"accept_a": "accept-a", "default": "default"},
+        }
+        self.assertEqual(
+            resolve_tenant_for_dialplan(mapping, domain="accept-a.localhost", context="default"),
+            "accept-a",
+        )
+        self.assertEqual(
+            resolve_tenant_for_dialplan(mapping, domain="accept-a.localhost", context="accept_a"),
+            "accept-a",
+        )
+        self.assertEqual(
+            resolve_tenant_for_dialplan(mapping, domain="unknown", context="default"),
+            "default",
+        )
 
 
 if __name__ == "__main__":

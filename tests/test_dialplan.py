@@ -123,6 +123,29 @@ class DialplanTest(unittest.TestCase):
         self.assertNotIn('extension name="draft"', xml)
         self.assertNotIn("application=", xml)
 
+    def test_published_dialplan_can_alias_a_generic_webrtc_context(self):
+        plan = SimpleNamespace(
+            title="WebRTC",
+            enabled=1,
+            published_context="accept_a",
+            published_priority=10,
+            published_xml='    <extension name="webrtc_flow"><condition field="destination_number" expression="^9300$"/></extension>',
+        )
+        settings = SimpleNamespace(
+            default_context="default",
+            main_did="",
+            allow_internal_calls=1,
+        )
+        xml = compile_published_dialplan(
+            [plan],
+            settings,
+            alias_context="default",
+            alias_source="accept_a",
+        )
+        self.assertIn('<context name="accept_a">', xml)
+        self.assertIn('<context name="default">', xml)
+        self.assertEqual(xml.count('extension name="webrtc_flow"'), 2)
+
     def test_compile_published_dialplan_orders_by_published_priority(self):
         def plan(title, priority):
             return SimpleNamespace(

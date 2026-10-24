@@ -211,6 +211,9 @@ Have:
 
 - `get_softphone_config`.
 - My extension credentials page.
+- Browser WebRTC registration against the `webrtc` profile using the
+  Tenant-qualified extension and SIP password.
+- RFC1918 ICE candidate ACL for local Docker/host browser media.
 
 Missing:
 
@@ -270,6 +273,14 @@ A local Docker acceptance run on 2026-10-23 passed:
   after the document-name migration.
 - Wallboard shows queue depth, configured wait, answer/abandon counters,
   available/busy agents and active call paths from the live snapshot.
+- Real WebRTC call lab: extension `7101` registered over `ws://localhost:5066`;
+  a call to the QA menu reached the timeout branch with `lab_stage=entered` and
+  `lab_route=timeout`; a call to the QA queue bridged to the registered agent,
+  and the wallboard reported one active queue call, one answered call, and the
+  queue call path.
+- XML-curl now reads `Caller-Context`/`Hunt-Context` when FreeSWITCH omits the
+  `context` field, and aliases the Tenant context into the WebRTC profile's
+  generic `default` context.
 
 Observed limitation:
 
@@ -280,8 +291,8 @@ Observed limitation:
 
 Still pending:
 
-- A real FreeSWITCH call lab: menu, timeout, loop, queue transfer and variable
-  persistence.
+- The menu digit branch, loop and real SIP INFO/DTMF input; the timeout branch,
+  queue transfer and variable persistence passed.
 - A real multi-Tenant queue call and SIP/queue event fan-out.
 - Live Tenant isolation with real SIP channels and agents.
 

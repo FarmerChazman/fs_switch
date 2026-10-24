@@ -91,7 +91,12 @@ def summarize(data: dict[str, Any] | None) -> dict[str, Any]:
 
 	calls = []
 	longest_wait = 0
+	seen_calls = set()
 	for row in data.get("channels") or []:
+		call_key = _text(row.get("call_uuid") or row.get("uuid"))
+		if call_key and call_key in seen_calls:
+			continue
+		seen_calls.add(call_key)
 		wait = _integer(row.get("wait_seconds"))
 		longest_wait = max(longest_wait, wait)
 		calls.append(

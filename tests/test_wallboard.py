@@ -27,13 +27,24 @@ class WallboardTest(unittest.TestCase):
             "channels": [
                 {
                     "uuid": "abc",
+                    "call_uuid": "call-1",
                     "cid_num": "+14155550100",
                     "dest": "support@acme",
                     "queue": "support@acme",
                     "agent": "7101@acme",
                     "wait_seconds": 12,
                     "callstate": "CS_EXECUTE",
-                }
+                },
+                {
+                    "uuid": "abc-agent",
+                    "call_uuid": "call-1",
+                    "cid_num": "7101",
+                    "dest": "support@acme",
+                    "queue": "support@acme",
+                    "agent": "7101@acme",
+                    "wait_seconds": 12,
+                    "callstate": "CS_EXECUTE",
+                },
             ],
         }
 
@@ -49,6 +60,7 @@ class WallboardTest(unittest.TestCase):
         self.assertEqual(result["metrics"]["longest_wait_seconds"], 12)
         self.assertEqual(result["metrics"]["active_calls"], 1)
         self.assertEqual(result["metrics"]["queue_calls"], 1)
+        self.assertEqual(len(result["calls"]), 1)
         self.assertEqual(result["queues"][0]["queue"], "support")
         self.assertEqual(result["queues"][0]["context"], "acme")
 

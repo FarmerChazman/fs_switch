@@ -232,6 +232,23 @@ Tenant uniqueness and wallboard checks also passed:
 - The live snapshot derives queue depth from active callcenter channels and
   returns a zeroed wallboard summary when FreeSWITCH has no calls.
 
+Real WebRTC call lab on 2026-10-24:
+
+- Extension `7101` registered with the `webrtc` profile over
+  `ws://localhost:5066` using its own `get_softphone_config` credentials.
+- A call from the browser to the QA menu (`9300`) reached the timeout branch;
+  `fs_switch_flow`, `lab_stage` and `lab_route` persisted on the channel.
+- A call to the QA queue (`9400`) bridged to the registered agent. FreeSWITCH
+  showed the caller and agent legs, and the wallboard reported one active call,
+  one answered call and the queue call path.
+- The missing `Caller-Context` XML-curl field was fixed; WebRTC calls now select
+  the Tenant by the authenticated user's context.
+- Local WebRTC media required `apply-candidate-acl = rfc1918.auto`; without it,
+  FreeSWITCH dropped the browser's RFC1918 ICE candidates.
+
+Still pending in the call lab: the menu digit branch, loop and SIP INFO/DTMF
+input.
+
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The
 handler-level cache and secret hash are still useful, but they are not a full
