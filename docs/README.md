@@ -1,14 +1,17 @@
 # FS Switch documentation
 
 FS Switch is an alpha-stage Frappe app and Vue console for operating
-FreeSWITCH. The root [`README.md`](../README.md) is the install and feature
-overview. This page is the map for the rest of the documentation.
+FreeSWITCH. Start with [`installation.md`](installation.md) and
+[`first-steps.md`](first-steps.md) for the user-facing path. This page is the map
+for the rest of the documentation.
 
 ## Start here
 
 | Document | Read it when |
 |---|---|
-| [`../README.md`](../README.md) | You want to install FS Switch, understand the feature set or find the quick start. |
+| [`installation.md`](installation.md) | You are installing FS Switch with Docker or on an existing Frappe bench. |
+| [`first-steps.md`](first-steps.md) | You have a running console and want to create an extension, Flow and first test call. |
+| [`../README.md`](../README.md) | You want the feature overview, quick start or project links. |
 | [`PRODUCT.md`](PRODUCT.md) | You need the product direction, personas and scope. |
 | [`STATUS.md`](STATUS.md) | You need the current build status against the original source documents. |
 | [`ACCEPTANCE.md`](ACCEPTANCE.md) | You are running the first live bench, permission, Socket.IO or XML-curl acceptance pass. |

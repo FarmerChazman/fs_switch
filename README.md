@@ -64,6 +64,8 @@ flow schema and compiler are documented in
 ## Documentation
 
 - [`docs/README.md`](docs/README.md) — documentation index and operating notes
+- [`docs/installation.md`](docs/installation.md) — Docker and existing-bench installation
+- [`docs/first-steps.md`](docs/first-steps.md) — set up an extension, Flow and first test call
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — product direction and scope
 - [`docs/STATUS.md`](docs/STATUS.md) — current status against the original source documents
 - [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) — live bench, permissions, Socket.IO and XML-curl acceptance checklist
