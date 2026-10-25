@@ -97,7 +97,8 @@ python -m unittest discover -s tests -v
 git diff --check
 ```
 
-`pytest tests` is also supported. The compiler, publish, call-setup, route
+`pytest tests` is also supported. `tests/test_docs.py` checks relative links,
+screenshots and the user-guide index. The compiler, publish, call-setup, route
 simulator, diff, Tenant mapping, DID normalization and ESL listener tests run
 without a Frappe site. DocType validation, permission hooks, patches, XML-curl handlers,
 Socket.IO authentication and the console need a live bench for end-to-end

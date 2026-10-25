@@ -28,7 +28,10 @@ for the rest of the documentation.
 | [`flows.md`](flows.md) | You are building, simulating, publishing or rolling back a Flow. |
 | [`live-operations.md`](live-operations.md) | You are using Channels, Registrations, Agents, the wallboard or monitoring. |
 | [`settings.md`](settings.md) | You are changing XML-curl, ESL, media, recording or global routing settings. |
+| [`recipes.md`](recipes.md) | You want concrete menu, after-hours, queue and DID examples. |
 | [`troubleshooting.md`](troubleshooting.md) | You need a layer-by-layer diagnosis before changing configuration. |
+| [`roadmap.md`](roadmap.md) | You need what is shipped, partial or still to develop. |
+| [`limitations.md`](limitations.md) | You need the consolidated alpha limits before a production rollout. |
 
 ## Reference and operations
 

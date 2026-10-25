@@ -74,7 +74,10 @@ flow schema and compiler are documented in
 - [`docs/flows.md`](docs/flows.md) — semantic Flow nodes, simulator and publishing
 - [`docs/live-operations.md`](docs/live-operations.md) — Channels, Agents, Wallboard and monitoring
 - [`docs/settings.md`](docs/settings.md) — XML-curl, ESL, media and global settings
+- [`docs/recipes.md`](docs/recipes.md) — menu, after-hours, queue and DID examples
 - [`docs/troubleshooting.md`](docs/troubleshooting.md) — layer-by-layer diagnosis
+- [`docs/roadmap.md`](docs/roadmap.md) — shipped, partial and remaining development
+- [`docs/limitations.md`](docs/limitations.md) — consolidated alpha limitations
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — product direction and scope
 - [`docs/STATUS.md`](docs/STATUS.md) — current status against the original source documents
 - [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) — live bench, permissions, Socket.IO and XML-curl acceptance checklist
