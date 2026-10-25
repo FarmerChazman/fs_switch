@@ -4,12 +4,14 @@ space: "FS Switch"
 ---
 
 A **DID** (Direct Inward Dialling number) is an inbound phone number assigned to
-a Tenant. The **DIDs** page is the Tenant's inbound-number inventory: it records
-the number, which Tenant owns it, whether it is enabled, and which Flow is
-intended to handle it.
+a Tenant. The **DIDs** page records the number, which Tenant owns it, whether it
+is enabled, and which Flow should handle it.
 
-DIDs are not a routing table. A Flow's **Destination** pattern is what FreeSWITCH
-matches. The DID record and the Flow pattern must describe the same number.
+DIDs are the routing map for calls entering FreeSWITCH's shared `public`
+context. An enabled DID assigned to an enabled, Published Flow compiles a
+public-context transfer into that Flow's Tenant context. A DID without a Flow
+falls back to its Tenant's **Main inbound number**. The Flow's **Destination**
+pattern must still match the number FreeSWITCH receives.
 
 ![DIDs list](screenshots/dids.png)
 
@@ -67,68 +69,89 @@ form `\+?` accepts one or zero plus signs. Do not add a leading or trailing spac
 Use the Flow **Simulate** tab with the exact destination the carrier sends and
 confirm that the expected branch is reached.
 
-### The Assigned Flow is informational
+### Assigned Flow and Tenant fallback
 
-Selecting a Flow on the DID record documents intent and links the two documents,
-but it does not create a FreeSWITCH extension or transfer. The Flow's destination
-pattern still does the routing. If the DID says `+14155550101` and the Flow
-pattern is `^14155550101$`, the call will not match a carrier that includes the
-plus.
+The public route is chosen in this order:
+
+1. **Enabled DID with an enabled, Published Flow** → transfer to the Flow's
+   published Tenant context.
+2. **Enabled DID with no Flow, and the Tenant has a Main inbound number** →
+   transfer to the Tenant main number in the Tenant context.
+3. **No eligible Flow and no Tenant main number** → no public route; the call
+   receives FreeSWITCH's not-found result rather than being sent to the wrong
+   Tenant.
+
+An assigned Flow that is disabled, unpublished, belongs to another Tenant, or
+targets `public` is skipped. It does not silently fall back to the Tenant main
+number. This makes a broken assignment visible instead of hiding it.
+
+The Flow destination pattern still has to match the carrier's format. If the
+DID says `+14155550101` and the Flow pattern is `^14155550101$`, a carrier that
+sends the plus will not match.
 
 ## Inbound call path
 
-The current alpha routes inbound calls in this order:
+The public dialplan is compiled from the enabled DID inventory across all
+enabled Tenants:
 
 ```text
-Carrier → gateway → FreeSWITCH context → Flow destination pattern
+Carrier → gateway → public context → DID route
+        → Tenant context → Flow destination pattern
 ```
 
-A call entering the gateway's `public` context is forwarded only for the
-configured **Main inbound number** in **Settings**, and the transfer target is
-the global **Default context**, not a per-Tenant context. Other DIDs need a
-public-context route in FreeSWITCH, or the carrier/FreeSWITCH configuration
-must send the call into the Tenant's context directly. The DID inventory alone
-does not add those routes.
+The route map is served from the same cached dialplan document as the rest of
+the Tenant configuration. It is rebuilt when a DID, Flow or Tenant changes.
 
-This is an important alpha limitation:
+- A carrier call entering `public` can reach the correct Tenant without a
+  per-DID FreeSWITCH file.
+- A Flow that is not Published is not routed.
+- A DID that is disabled or belongs to a disabled Tenant is not routed.
+- The global **Settings → Main inbound number** is kept as the final legacy
+  fallback when no DID route claims the number.
 
-- The DID **Assigned Flow** is not a routing rule.
-- The bundled `public` context forwards only `FS Switch Settings → Main inbound
-  number` into `FS Switch Settings → Default context`.
-- A second Tenant with its own context must be reached by a context-correct
-  carrier/FreeSWITCH route; the shared public path does not select that Tenant.
-- Multi-DID routing requires FreeSWITCH dialplan or carrier-side context
-  configuration beyond the DID record.
+## Main inbound numbers
 
-For a Tenant with one main number, set **Settings → Main inbound number** to the
-number and make the Flow's destination pattern accept the carrier's format. For
-multiple numbers, plan the public-context path with the FreeSWITCH
-administrator before going live.
+There are two related settings:
 
-## Change the main inbound number
+| Setting | Scope | Purpose |
+|---|---|---|
+| **Tenant → Main inbound number** | One Tenant | Fallback target for that Tenant's DIDs without an assigned Flow. |
+| **Settings → Main inbound number** | Global | Legacy public-context fallback when no DID route matches. Also used for the default Tenant on a simple install. |
 
-Open **Administration → Settings** as a System Manager. **Main inbound number
-(DID)** is the number FreeSWITCH forwards from the `public` context into the
-default context.
+The Tenant main number is stored on the Tenant and is used with the Tenant's
+default context. The global setting remains available for compatibility and for
+a simple single-Tenant deployment; do not confuse the two.
 
 Keep these values aligned:
 
 1. The carrier's actual number.
-2. The main DID in **Settings**.
+2. The Tenant main number or global main DID.
 3. The DID record in the Tenant inventory.
 4. The Flow's destination pattern.
-5. The main DID allowed by the gateway or carrier.
+5. The number allowed by the gateway or carrier.
 
-Changing the DID inventory does not change the main DID. Changing the main DID
-does not change any Flow pattern.
+Changing the DID inventory does not change either main number. Changing a main
+number does not change any Flow pattern.
+
+## Cache and publication
+
+The public route map is part of the dialplan cache. These changes invalidate it:
+
+- saving or deleting a DID;
+- publishing, rolling back or enabling/disabling a Flow;
+- changing a Tenant or the global Settings.
+
+A normal Draft save does not change public routing. Publish the Flow and verify
+the Published version before testing the number.
 
 ## Disable or delete a DID
 
-Disabling or deleting a DID updates the inventory only. It does not remove a
-FreeSWITCH dialplan route or stop a carrier from delivering the number. Remove
-or change the carrier route separately.
+Disabling or deleting a DID removes its public route on the next cache rebuild.
+It does not stop a carrier from delivering the number; remove or change the
+carrier route separately. Deleting a DID does not delete its assigned Flow.
 
-Deleting a DID does not delete its assigned Flow.
+If the DID was the only route for a number, the global main-DID fallback may
+still match. Check the actual call path after changing the inventory.
 
 ## Checklist for a new inbound number
 
@@ -137,8 +160,11 @@ Deleting a DID does not delete its assigned Flow.
 - [ ] The Flow destination pattern matches that exact format.
 - [ ] The Flow is published, not just saved.
 - [ ] The Flow context is the Tenant's default context.
-- [ ] The main DID or the public-context route is configured in FreeSWITCH.
-- [ ] The gateway/carrier is sending calls to the expected context.
+- [ ] The DID is enabled and assigned to the Published Flow, or the Tenant has a
+      Main inbound number.
+- [ ] The gateway/carrier is sending calls to `public` or directly to the
+      Tenant context.
+- [ ] The public route map returns the expected transfer.
 - [ ] A test call reaches the expected Flow step.
 - [ ] The call appears in **Live → Channels** and, if queued, in the wallboard.
 
@@ -150,8 +176,10 @@ Deleting a DID does not delete its assigned Flow.
 | `Flow ... belongs to another Tenant` | The Assigned Flow must belong to the DID's Tenant. |
 | Flow simulator matches, but the real call does not | The carrier may add or remove `+`, a country code or a prefix. Compare the actual FreeSWITCH destination with the pattern. |
 | The call reaches the wrong Flow | Check Flow priority, the destination pattern, and whether the old Published version is still being served. |
-| Another Tenant's DID works but this one does not | Check the public-context route and main DID; DID inventory alone does not route calls. |
-| The DID is disabled but calls still arrive | Disabling the inventory row does not change carrier or FreeSWITCH routing. |
+| Another Tenant's DID works but this one does not | Check that the DID is enabled, the Flow is Published and belongs to the same Tenant, and the Tenant is enabled. |
+| The DID is disabled but calls still arrive | Removing the DID route does not stop the carrier. Change the carrier route and check the global main-DID fallback. |
+| The DID has no assigned Flow | Set the Tenant **Main inbound number** or assign a Published Flow; an unassigned DID has no route without a Tenant fallback. |
+| Public XML has the old route | The DID/Flow change should invalidate the dialplan cache; wait for the rebuild or check the invalidation/error log. |
 
 ## Related pages
 

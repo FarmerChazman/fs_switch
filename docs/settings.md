@@ -15,7 +15,7 @@ Admins configure their own Tenant on the Tenant form, not on this page.
 
 | Field | Purpose |
 |---|---|
-| **Main inbound number (DID)** | Number the shared `public` context forwards into the global default context. |
+| **Main inbound number (DID)** | Global fallback number for the `public` context when no DID route claims the call. Tenant main numbers are configured on the Tenant. |
 | **Default context** | Global fallback context and target for the main-DID public transfer. |
 | **SIP domain** | Global fallback SIP domain when a Tenant does not define one. |
 | **WebRTC WebSocket URL** | URL shown to extension owners for a softphone, for example `ws://localhost:5066`. |
@@ -92,13 +92,17 @@ these values first, then the FreeSWITCH event-socket ACL and logs.
 
 ## Main DID and default context
 
-These two values are global in this alpha:
+The `public` context first uses the DID inventory:
 
-- the `public` context forwards the **Main inbound number**;
-- the transfer target is the **Default context**, not a per-Tenant context.
+- an enabled DID with a Published Flow transfers into that Flow's Tenant
+  context;
+- a DID without a Flow can use its Tenant's **Main inbound number**;
+- the global **Main inbound number** is the final fallback when no DID route
+  claims the call, and the transfer target for that fallback is the global
+  **Default context**.
 
-A second Tenant with its own context needs a context-correct carrier/FreeSWITCH
-route. See [DIDs and inbound numbers](dids.md) and
+Per-Tenant main numbers are configured on the Tenant form, not on this global
+page. See [DIDs and inbound numbers](dids.md) and
 [Gateways and carrier trunks](gateways.md).
 
 ## Media and recording

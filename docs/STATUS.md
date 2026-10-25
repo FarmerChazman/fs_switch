@@ -84,6 +84,10 @@ deployment.
 - Default Tenant cannot be disabled or deleted.
 - DID inventory: number, Tenant, enabled flag, optional assigned Flow and
   description.
+- Tenant main inbound number fallback for DIDs without an assigned Flow.
+- Public DID route map: enabled DID -> enabled Published Flow context; a DID
+  without a Flow uses the Tenant main inbound number; the global main DID is the
+  final fallback. DID changes invalidate the dialplan cache.
 - Global `callcenter.conf` contains every enabled Tenant, with
   context-qualified queue and agent names.
 
@@ -316,6 +320,7 @@ Observed limitation:
 
 Still pending:
 
+- Real carrier acceptance for the public DID map with two Tenants and two DIDs.
 - Real Socket.IO recipient isolation for simultaneous multi-Tenant calls.
 - Registration event fan-out with real SIP endpoints.
 
@@ -331,10 +336,10 @@ a minor warning.
 
 ## Recommended next order
 
-1. **Finish multi-Tenant live verification** - a real queue call in
-   Acceptance B, real ESL recipient isolation and event fan-out. The
-   single-Tenant browser call lab is complete; the checklist is in
-   [`ACCEPTANCE.md`](ACCEPTANCE.md).
+1. **Finish multi-Tenant live verification** - real carrier public-DID calls
+   in Acceptance A/B, real ESL recipient isolation and event fan-out. The
+   single-Tenant browser call lab and public DID XML tests are complete; the
+   checklist is in [`ACCEPTANCE.md`](ACCEPTANCE.md).
 2. **Finish the Tenant layer** - broader Tenant settings, quotas and
    provisioning.
 3. **Supervisor depth** - richer hold-time history, in-console monitor audio

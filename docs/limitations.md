@@ -14,10 +14,9 @@ acceptance gaps, see [`DEFERRED.md`](DEFERRED.md).
 
 | Limitation | Current behaviour | What to do now |
 |---|---|---|
-| DIDs are inventory, not routes | The DID record stores a number, Tenant, enabled flag, optional Flow and description. The Flow destination pattern does the routing. | Align the DID and Flow pattern; test the exact carrier format. |
-| Public context is main-DID only | A call entering `public` is transferred only for the global main DID, into the global default context. | Add a carrier/FreeSWITCH public-context route for other DIDs or send calls into the Tenant context directly. |
-| No per-Tenant main DID | The main inbound number and default context are global settings. | Use a context-correct route per Tenant until per-Tenant inbound settings exist. |
+| DIDs need a complete route | An enabled DID routes only when it has an enabled, Published Flow in the same Tenant, or falls back to the Tenant main inbound number. | Publish the Flow, check the Tenant, and set a Tenant main number if the DID is unassigned. |
 | No DID starting node | The canvas does not start from a DID document. | Use the Flow destination pattern and the DID inventory together. |
+| Unknown DIDs have no route | A number absent from the DID inventory is not routed unless it matches the global main-DID fallback. | Add the DID or a Tenant main fallback; do not rely on a default Tenant guess. |
 
 ## Carrier and gateways
 

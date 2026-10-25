@@ -53,12 +53,12 @@ before sending production calls:
    preferences. Follow the carrier's FreeSWITCH/SIP instructions; this alpha
    does not generate the SIP profile or gateway XML.
 3. **Set the inbound context.** Carrier calls typically arrive in `public`.
-   In this alpha, a call entering `public` is forwarded only for the global
-   **Settings → Main inbound number**, and the transfer target is the global
-   **Settings → Default context**, not a per-Tenant context. Additional DIDs and
-   non-default Tenants need a public-context route or carrier-side context
-   configuration. Make the gateway's **Context** field and the real FreeSWITCH
-   context agree; the record is inventory, not a routing rule.
+   The public dialplan uses the enabled DID map: an assigned Published Flow
+   routes into that Tenant's context; a DID with no Flow falls back to the
+   Tenant **Main inbound number**; the global **Settings → Main inbound number**
+   remains the final legacy fallback. Make the gateway's **Context** field and
+   the real FreeSWITCH context agree; the record itself is still inventory, not
+   a routing rule.
 4. **Set the default gateway reference.** In **Settings → Default gateway**,
    select the record if you want the console and future outbound features to
    have a default. The field is metadata in this alpha; it does not currently
@@ -122,8 +122,8 @@ Then test:
 | FreeSWITCH has no gateway | The record is inventory only. Create the gateway in the FreeSWITCH SIP profile and reload it. |
 | Registration fails | Proxy, username, password, realm, from-domain and carrier IP allowlist. |
 | One-way audio | RTP range, NAT/public media IP, firewall and codec. |
-| Carrier delivers calls but the Flow does not run | The call is in a different context, or the Flow destination pattern does not match the delivered number. |
-| Several DIDs only one works | The `public` context forwards the main DID only in this alpha. Add an explicit public-context route or send calls into the Tenant context. |
+| Carrier delivers calls but the Flow does not run | The call is in a different context, the Flow is not Published, or the destination pattern does not match the delivered number. |
+| A DID does not route | Is the DID enabled, is its Flow Published and in the same Tenant, or does the Tenant have a Main inbound number? Check the public dialplan cache. |
 | Outbound calls ignore the gateway | A Gateway record does not create an outbound route. Bridge through the configured FreeSWITCH gateway in the Flow or dialplan. |
 | Wrong caller ID | Check the gateway, Tenant and extension caller-ID values; the extension value takes precedence for that endpoint. |
 

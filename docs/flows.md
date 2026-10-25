@@ -45,8 +45,7 @@ application chain. Semantic Flows are the default product model.
 | **Entry step** | The first semantic step followed by the compiler. |
 
 The destination pattern must match the number as FreeSWITCH receives it. See
-[DIDs and inbound numbers](dids.md) for examples and the current public-context
-limitation.
+[DIDs and inbound numbers](dids.md) for examples and public DID routing.
 
 ## Canvas, ports and validation
 
@@ -214,7 +213,7 @@ are never used on the call-setup path.
 | Prompt does not play | The path exists in FreeSWITCH or use a stream URI. |
 | Queue node fails | Queue exists, same Tenant, agents available and loaded. |
 | Publish reports `reloadxml` failure | Run `reloadxml` from `fs_cli`; check FreeSWITCH logs. |
-| A second Tenant's Flow is never reached | The public context forwards only the global main DID into the global default context; configure a context-correct inbound route. |
+| A second Tenant's Flow is never reached | Check the DID's Tenant, Published Flow and context, and whether the call is entering `public` or the Tenant context. |
 
 ## Related pages
 

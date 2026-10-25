@@ -36,6 +36,7 @@ function blankTenant() {
     enabled: 1,
     sip_domain: '',
     default_context: '',
+    main_did: '',
     outbound_caller_id: '',
     hold_music_file: '',
     description: '',
@@ -111,6 +112,7 @@ async function save() {
     enabled: form.value.enabled ? 1 : 0,
     sip_domain: (form.value.sip_domain || '').trim().toLowerCase(),
     default_context: form.value.default_context.trim().toLowerCase(),
+    main_did: (form.value.main_did || '').trim(),
     outbound_caller_id: (form.value.outbound_caller_id || '').trim(),
     hold_music_file: (form.value.hold_music_file || '').trim(),
     description: form.value.description || '',
@@ -246,6 +248,15 @@ onMounted(load)
         <div class="fs-field">
           <label for="tenant-context">Default context</label>
           <InputText id="tenant-context" v-model="form.default_context" placeholder="acme" />
+        </div>
+        <div class="fs-field">
+          <label for="tenant-main-did">Main inbound number</label>
+          <InputText
+            id="tenant-main-did"
+            v-model="form.main_did"
+            placeholder="+14155550100"
+          />
+          <small>Optional fallback for a DID without an assigned Flow.</small>
         </div>
         <div class="fs-field">
           <label for="tenant-caller-id">Outbound caller ID</label>

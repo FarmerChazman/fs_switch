@@ -67,13 +67,16 @@ fs_switch:xml:last-known-good:<kind>:<tenant>:<name>
 ```
 
 `callcenter.conf` uses `<tenant>=all` and `<name>=all` because it is a global
-document.
+document. The shared public dialplan uses
+`fs_switch:xml:current:dialplan:all:public` because it contains the DID route
+map for every enabled Tenant.
 
 - Current entries expire after 24 hours.
 - Last-known-good entries have no expiry and are not overwritten by an empty
   build.
-- Publish, rollback, enable/disable, settings, Tenant, extension, queue and
-  gateway changes invalidate the current entry after commit.
+- Publish, rollback, enable/disable, settings, Tenant, DID, extension and queue
+  changes invalidate the current entry after commit. Gateway records are
+  inventory only in this alpha and do not alter the served documents.
 - Handlers never invalidate. They read, fill on a miss, and return XML.
 - A warm cache plus the cached secret hash keeps an executing handler alive
   during a database failure. A full MariaDB outage still fails at the Frappe
@@ -93,7 +96,9 @@ among enabled Tenants.
 
 - A directory request supplies a domain; the handler resolves the Tenant by
   domain.
-- A dialplan request supplies a context; the handler resolves the Tenant by
+- A tenant-scoped dialplan request supplies a context; the handler resolves the
+  Tenant by context.
+- A `public` dialplan request uses the global DID route map, not one Tenant's
   context.
 - `callcenter.conf` is global, so its document includes every enabled Tenant.
 - If both labels are supplied and disagree, the context wins.
@@ -107,11 +112,11 @@ among enabled Tenants.
 A Flow context must match its Tenant's default context. Otherwise the compiled
 Flow would be stored under a Tenant that the request cannot reach.
 
-Assign inbound numbers in **DIDs**. The inventory is assigned to a Tenant and
-optionally to the Flow expected to handle the number. The assignment is
-informational; actual routing still comes from the Flow destination pattern.
-Normalize numbers the way the carrier sends them: the `DID` document removes
-spaces, hyphens and an optional `tel:` prefix but keeps a leading `+`.
+Assign inbound numbers in **DIDs**. An enabled DID routes a public-context call
+to its enabled, Published Flow in the same Tenant, or to the Tenant main inbound
+number when no Flow is assigned. The Flow destination pattern still has to match
+the number. Normalize numbers the way the carrier sends them: the `DID` document
+removes spaces, hyphens and an optional `tel:` prefix but keeps a leading `+`.
 
 FreeSWITCH's `callcenter.conf` configuration request is global rather than
 context-scoped, so `serve_callcenter()` builds one document for every enabled

@@ -12,6 +12,7 @@ from fs_switch.dialplan import (  # noqa: E402
     DialplanError,
     compile_dialplan,
     compile_extension,
+    compile_public_dialplan,
     compile_published_dialplan,
     inbound_pattern,
     ordered_nodes,
@@ -78,6 +79,70 @@ class DialplanTest(unittest.TestCase):
         self.assertEqual(inbound_pattern("+61 2 5550 1000"), r"^\+?61255501000$")
         self.assertEqual(inbound_pattern("1000"), r"^\+?1000$")
         self.assertEqual(inbound_pattern(""), "")
+
+    def test_public_dialplan_routes_each_tenant_did_to_its_context(self):
+        settings = SimpleNamespace(default_context="default", main_did="1000")
+        routes = [
+            {
+                "number": "+14155550101",
+                "tenant": "accept-a",
+                "context": "accept_a",
+            },
+            {
+                "number": "14155550102",
+                "tenant": "accept-b",
+                "context": "accept_b",
+            },
+        ]
+        xml = compile_public_dialplan(routes, settings)
+        self.assertIn('<context name="public">', xml)
+        self.assertIn('expression="^\\+?14155550101$"', xml)
+        self.assertIn("+14155550101 XML accept_a", xml)
+        self.assertIn('expression="^\\+?14155550102$"', xml)
+        self.assertIn("14155550102 XML accept_b", xml)
+        self.assertIn("1000 XML default", xml)
+
+    def test_public_dialplan_can_transfer_an_alias_to_a_tenant_main_did(self):
+        settings = SimpleNamespace(default_context="default", main_did="")
+        routes = [
+            {
+                "number": "+14155550109",
+                "tenant": "accept-a",
+                "context": "accept_a",
+                "target": "+14155550100",
+            }
+        ]
+        xml = compile_public_dialplan(routes, settings)
+        self.assertIn('expression="^\\+?14155550109$"', xml)
+        self.assertIn("+14155550100 XML accept_a", xml)
+
+    def test_public_dialplan_does_not_duplicate_a_main_did_route(self):
+        settings = SimpleNamespace(default_context="default", main_did="+14155550101")
+        routes = [
+            {
+                "number": "+14155550101",
+                "tenant": "accept-a",
+                "context": "accept_a",
+            }
+        ]
+        xml = compile_public_dialplan(routes, settings)
+        self.assertEqual(xml.count('expression="^\\+?14155550101$"'), 1)
+        self.assertIn("+14155550101 XML accept_a", xml)
+
+    def test_public_dialplan_never_targets_the_public_context(self):
+        settings = SimpleNamespace(default_context="default", main_did="")
+        routes = [
+            {
+                "number": "+14155550101",
+                "tenant": "accept-a",
+                "context": "public",
+            }
+        ]
+        self.assertEqual(compile_public_dialplan(routes, settings), NOT_FOUND_DOCUMENT)
+
+    def test_public_dialplan_without_routes_or_main_did_is_not_found(self):
+        settings = SimpleNamespace(default_context="default", main_did="")
+        self.assertEqual(compile_public_dialplan([], settings), NOT_FOUND_DOCUMENT)
 
     def test_compile_dialplan_merges_internal_extension_into_default_context(self):
         plan = SimpleNamespace(

@@ -15,6 +15,7 @@ passed. Remaining:
 
 - Real registration event fan-out with multiple Tenants.
 - Simultaneous multi-Tenant calls with Socket.IO recipient isolation.
+- Real carrier acceptance for public DID routing with two Tenants and two DIDs.
 - Verify a Supervisor in one Tenant cannot act on another Tenant's live
   channels or agents; API live-data isolation passed with an Acceptance B
   queue call.

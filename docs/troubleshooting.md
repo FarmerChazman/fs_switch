@@ -63,9 +63,9 @@ fs_cli -x "reloadxml"
 | Symptom | Check |
 |---|---|
 | Call reaches FreeSWITCH but no Flow | Destination pattern, Tenant context, Published state, priority. |
-| Main DID works, another DID does not | Only the main DID is forwarded from the `public` context in this alpha. Add a public-context route or send the call into the Tenant context. |
-| A second Tenant's DID goes to the default Tenant | The shared public path uses the global main DID and default context; route the call with the correct Tenant context. |
-| DID record has the right Flow but calls fail | The Assigned Flow is informational. The Flow destination pattern does the routing. |
+| One DID works, another does not | Check that the DID is enabled, its Flow is Published and in the same Tenant, or set the Tenant main inbound number. Check the public dialplan cache. |
+| A second Tenant's DID goes to the default Tenant | Check the public DID route and the DID's Tenant/Flow context; the public context uses the DID map before the global main-DID fallback. |
+| DID record has the right Flow but calls fail | Check that the Flow is Published, belongs to the DID's Tenant, and its destination pattern matches the number. |
 | Flow simulator matches but carrier does not | Compare the exact carrier number, including `+`, country code and prefix. |
 
 ## Queues and agents

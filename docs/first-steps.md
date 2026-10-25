@@ -267,9 +267,9 @@ the Tenant's inbound numbers and connect a gateway.
 
 For example, a carrier sending `+14155550101` needs a Flow pattern such as
 `^\+14155550101$`; a carrier sending `14155550101` needs
-`^14155550101$`. Use `^\+?14155550101$` when both forms are possible. The DID
-record is inventory: the Flow pattern still does the routing. See
-[DIDs and inbound numbers](dids.md).
+`^14155550101$`. Use `^\+?14155550101$` when both forms are possible. The public DID map transfers
+the call into the Tenant context; the Flow pattern still has to match the
+carrier's number. See [DIDs and inbound numbers](dids.md).
 
 ### Add a second Tenant
 
@@ -293,9 +293,8 @@ in **Open Desk → User** first, then add the membership. See
 
 In this alpha the **FS Gateway** record is inventory only; it does not generate
 the FreeSWITCH gateway or register to the carrier. The shared `public` context
-forwards only the global main DID into the global default context, so a second
-Tenant or additional DID needs a context-correct route. See
-[Gateways and carrier trunks](gateways.md).
+uses the DID map to reach the correct Tenant; a DID without a Flow can use the
+Tenant main inbound number. See [Gateways and carrier trunks](gateways.md).
 
 ## 8. What next
 
@@ -311,6 +310,6 @@ Tenant or additional DID needs a context-correct route. See
   at once.
 
 The current alpha still has limitations: no embedded softphone, no in-console
-monitor audio, no media library, no automatic gateway generation, no per-DID
-public routing and no full CDR/recording history. Check
-[`DEFERRED.md`](DEFERRED.md) before planning a production rollout.
+monitor audio, no media library, no automatic gateway generation and no full
+CDR/recording history. Check [`DEFERRED.md`](DEFERRED.md) before planning a
+production rollout.

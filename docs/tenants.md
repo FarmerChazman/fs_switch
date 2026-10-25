@@ -22,6 +22,7 @@ difference between the three Tenant roles.
 | **Slug** | Stable identifier used in document names and routing. It cannot be changed after creation. |
 | **SIP domain** | The domain used for directory lookup and WebRTC registration. Must be unique among enabled Tenants. |
 | **Default context** | The FreeSWITCH context that owns this Tenant's Flows. Must be unique among enabled Tenants. |
+| **Main inbound number** | Optional fallback target for an enabled DID in this Tenant that has no assigned Flow. |
 | **Outbound caller ID** | Fallback caller ID for extensions in this Tenant. |
 | **Music on hold** | Tenant-specific hold music, for example `local_stream://moh`. |
 | **Description** | Internal notes. |
@@ -44,10 +45,12 @@ Tenant and membership, but cannot create or delete a Tenant.
 4. Set **SIP domain** and **Default context**. Use lowercase labels that match
    the SIP domain and FreeSWITCH context the Tenant will use, for example
    `acme.example.com` and `acme`.
-5. Optionally set an outbound caller ID and music-on-hold file.
-6. Leave **Enabled** on when the Tenant is ready.
-7. Add members and choose their roles.
-8. Click **Save**.
+5. Optionally set the Tenant **Main inbound number** for DIDs without an
+   assigned Flow.
+6. Optionally set an outbound caller ID and music-on-hold file.
+7. Leave **Enabled** on when the Tenant is ready.
+8. Add members and choose their roles.
+9. Click **Save**.
 
 ![New Tenant form](screenshots/new-tenant-members.png)
 
@@ -150,7 +153,7 @@ delete a Tenant while it still owns active routing.
 | `Context ... already belongs to Tenant ...` | Default contexts must be unique among enabled Tenants. |
 | A Flow was created in the wrong Tenant | The Tenant field is fixed. Create a new Flow in the correct Tenant; you cannot move it. |
 | An Agent can see another extension | Check the membership role and row-level permission; an Agent should only see their own extension. |
-| A new Tenant's calls go to the default Tenant | Check the SIP domain/context against the actual FreeSWITCH labels and the main DID routing. |
+| A new Tenant's calls go to the default Tenant | Check the SIP domain/context against the actual FreeSWITCH labels, the public DID route and the global main-DID fallback. |
 
 ## Related pages
 

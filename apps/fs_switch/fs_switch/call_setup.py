@@ -17,7 +17,12 @@ from __future__ import annotations
 import hashlib
 from types import SimpleNamespace
 
-from fs_switch.dialplan import NOT_FOUND_DOCUMENT, compile_published_dialplan
+from fs_switch.dialplan import (
+	NOT_FOUND_DOCUMENT,
+	compile_public_dialplan,
+	compile_published_dialplan,
+)
+from fs_switch.dids import did_key
 from fs_switch.tenants import (
 	DEFAULT_TENANT,
 	resolve_tenant_for_dialplan,
@@ -39,6 +44,10 @@ CURRENT_TTL = 24 * 60 * 60
 
 def _text(value) -> str:
 	return str(value or "").strip()
+
+
+def _row_value(row, key, default=None):
+	return row.get(key, default) if isinstance(row, dict) else getattr(row, key, default)
 
 
 def _attr(value) -> str:
@@ -246,9 +255,17 @@ def _document(frappe, kind: str, tenant: str, name: str) -> CachedDocument:
 
 
 def serve_dialplan(context=None, domain=None) -> str:
-	"""Return the published dialplan document from cache."""
+	"""Return the published dialplan document from cache.
+
+	The public context is shared by every Tenant. FreeSWITCH sends carrier
+	calls there, so it needs a global DID map rather than a per-Tenant document.
+	All other contexts resolve to one Tenant.
+	"""
 	frappe = _frappe()
 	requested_context = _text(context) or "default"
+	if requested_context == "public":
+		document = _document(frappe, "dialplan", "all", "public")
+		return document.serve(lambda: _build_public_dialplan(frappe))
 	mapping = _tenant_map(frappe)
 	tenant = resolve_tenant_for_dialplan(
 		mapping, domain=domain, context=requested_context
@@ -257,6 +274,107 @@ def serve_dialplan(context=None, domain=None) -> str:
 	return document.serve(
 		lambda: _build_dialplan(frappe, tenant, requested_context=requested_context)
 	)
+
+
+def _public_did_routes(frappe) -> list[dict]:
+	"""Return enabled DID -> Published Flow routes for the public context.
+
+	This is a control-plane lookup, not a per-call query: the result is compiled
+	and cached by CachedDocument. A DID without an assigned Flow uses the
+	Tenant main number; an assigned but unpublished Flow is skipped so the
+	misconfiguration is visible instead of silently changing the route.
+	"""
+	tenants = frappe.get_all(
+		"FS Tenant",
+		filters={"enabled": 1},
+		fields=["name", "enabled", "main_did", "default_context"],
+	)
+	tenant_rows = {
+		_text(_row_value(row, "name")): row
+		for row in tenants
+		if _row_value(row, "enabled", 1)
+	}
+	dids = [
+		row
+		for row in frappe.get_all(
+			"FS DID",
+			filters={"enabled": 1},
+			fields=["number", "tenant", "flow", "enabled"],
+		)
+		if _row_value(row, "enabled", 1)
+	]
+	flow_names = sorted(
+		{
+			_text(_row_value(row, "flow"))
+			for row in dids
+			if _text(_row_value(row, "flow"))
+		}
+	)
+	flows = (
+		frappe.get_all(
+			"FS Dialplan",
+			filters={"enabled": 1, "name": ["in", flow_names]},
+			fields=[
+				"name",
+				"tenant",
+				"enabled",
+				"published_tenant",
+				"published_context",
+				"published_xml",
+			],
+		)
+		if flow_names
+		else []
+	)
+	flows_by_name = {
+		_text(_row_value(row, "name")): row
+		for row in flows
+		if _row_value(row, "enabled", 1)
+	}
+	routes = []
+	for did in dids:
+		number = _text(_row_value(did, "number"))
+		tenant = _text(_row_value(did, "tenant"))
+		tenant_row = tenant_rows.get(tenant)
+		if not number or not tenant_row:
+			continue
+		flow_name = _text(_row_value(did, "flow"))
+		if not flow_name:
+			main_did = _text(_row_value(tenant_row, "main_did"))
+			context = _text(_row_value(tenant_row, "default_context"))
+			if main_did and context:
+				routes.append(
+					{
+						"number": number,
+						"tenant": tenant,
+						"context": context,
+						"target": main_did,
+					}
+				)
+			continue
+		flow = flows_by_name.get(flow_name)
+		if not flow:
+			continue
+		flow_tenant = _text(_row_value(flow, "tenant"))
+		published_tenant = _text(_row_value(flow, "published_tenant"))
+		context = _text(_row_value(flow, "published_context"))
+		published_xml = _text(_row_value(flow, "published_xml"))
+		if (
+			flow_tenant != tenant
+			or published_tenant != tenant
+			or not context
+			or context == "public"
+			or not published_xml
+		):
+			continue
+		routes.append({"number": number, "tenant": tenant, "context": context})
+	routes.sort(key=lambda route: (did_key(route["number"]), route["tenant"]))
+	return routes
+
+
+def _build_public_dialplan(frappe) -> str:
+	settings = frappe.get_single(SETTINGS_DOCTYPE)
+	return compile_public_dialplan(_public_did_routes(frappe), settings)
 
 
 def serve_directory(domain=None) -> str:

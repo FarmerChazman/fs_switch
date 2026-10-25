@@ -195,6 +195,72 @@ def _assemble_dialplan(
 	)
 
 
+def _public_route_key(value) -> str:
+	"""Comparison key shared by DID matching and duplicate suppression."""
+	return re.sub(r"[^0-9]", "", str(value or ""))
+
+
+def _public_route_name(number, tenant) -> str:
+	tenant_key = re.sub(r"[^a-z0-9]+", "_", str(tenant or "").lower()).strip("_")
+	tenant_key = tenant_key or "tenant"
+	return f"fs_switch_did_{tenant_key}_{_public_route_key(number)}"
+
+
+def compile_public_dialplan(routes: list, settings) -> str:
+	"""Compile the shared public context used by carrier inbound calls.
+
+	Each route transfers the received DID into the Tenant context that owns the
+	Published Flow. A legacy main-DID route is kept as a fallback when no DID
+	route owns that number. Public-context routes are deliberately ignored to
+	avoid a transfer loop.
+	"""
+	extensions = []
+	seen = set()
+	for route in routes or []:
+		number = str(route.get("number") or "").strip()
+		target = str(route.get("target") or number).strip()
+		tenant = str(route.get("tenant") or "").strip()
+		context = str(route.get("context") or "").strip()
+		pattern = inbound_pattern(number)
+		key = _public_route_key(number)
+		if not pattern or not tenant or not context or context == "public" or key in seen:
+			continue
+		seen.add(key)
+		extensions.append(
+			f"    <extension name={quoteattr(_public_route_name(number, tenant))}>\n"
+			f"      <condition field=\"destination_number\" expression={quoteattr(pattern)}>\n"
+			"        <action application=\"transfer\" "
+			f"data={quoteattr(f'{target} XML {context}')}/>\n"
+			"      </condition>\n"
+			"    </extension>"
+		)
+
+	main_did = str(getattr(settings, "main_did", "") or "").strip()
+	main_key = _public_route_key(main_did)
+	default_context = str(getattr(settings, "default_context", "") or "default").strip()
+	if main_did and main_key and main_key not in seen:
+		extensions.append(
+			f"    <extension name={quoteattr(_public_route_name(main_did, 'default'))}>\n"
+			f"      <condition field=\"destination_number\" expression={quoteattr(inbound_pattern(main_did))}>\n"
+			"        <action application=\"transfer\" "
+			f"data={quoteattr(f'{main_did} XML {default_context}')}/>\n"
+			"      </condition>\n"
+			"    </extension>"
+		)
+
+	if not extensions:
+		return NOT_FOUND_DOCUMENT
+	return (
+		'<document type="freeswitch/xml">\n'
+		'<section name="dialplan">\n'
+		'  <context name="public">\n'
+		+ "\n".join(extensions)
+		+ "\n  </context>\n"
+		"</section>\n"
+		"</document>"
+	)
+
+
 def compile_dialplan(plans: list, settings) -> str:
 	"""Compile draft Flows into the whole dialplan document.
 

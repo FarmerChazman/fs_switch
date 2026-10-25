@@ -86,10 +86,12 @@ extension owner, and a user without an extension sees a clear empty state.
 
 ## DIDs workspace
 
-The DIDs table is the Tenant’s inbound-number inventory. Each row stores the
+The DIDs table is the Tenant's inbound-number inventory. Each row stores the
 normalized carrier number, Tenant, enabled flag, an optional assigned Flow and a
-description. The assigned Flow is informational: FreeSWITCH still matches the
-Flow’s destination pattern, so keep the number and pattern aligned.
+description. An enabled DID assigned to a Published Flow compiles a public
+transfer into that Tenant context; a DID without a Flow falls back to the Tenant
+main inbound number. The Flow destination pattern still has to match the
+carrier's number.
 
 Tenant Admins can create, edit and delete DIDs. Supervisors get a read-only
 view. DIDs are fixed to their Tenant after creation.

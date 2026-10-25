@@ -254,6 +254,144 @@ class DialplanHandlerTest(unittest.TestCase):
         self.assertNotIn(SECRET_HASH_KEY, self.fake.cache.values)
 
 
+class PublicFrappe:
+    """Minimal Frappe surface for the shared public dialplan handler."""
+
+    def __init__(self, tenants=None, dids=None, flows=None, main_did="1000"):
+        self.cache = FakeCache()
+        self.tenants = tenants or []
+        self.dids = dids or []
+        self.flows = flows or []
+        self.main_did = main_did
+        self.errors = []
+
+    def get_single(self, doctype):
+        return SimpleNamespace(
+            default_context="default",
+            default_tenant="default",
+            main_did=self.main_did,
+            allow_internal_calls=0,
+        )
+
+    def get_all(self, doctype, **kwargs):
+        return {
+            "FS Tenant": self.tenants,
+            "FS DID": self.dids,
+            "FS Dialplan": self.flows,
+        }.get(doctype, [])
+
+    def log_error(self, title=None, message=None):
+        self.errors.append((title, message))
+
+
+class PublicDialplanHandlerTest(unittest.TestCase):
+    def setUp(self):
+        self.original_frappe = call_setup._frappe
+
+    def tearDown(self):
+        call_setup._frappe = self.original_frappe
+
+    def _flow(self, name, tenant, context, published=True):
+        return SimpleNamespace(
+            name=name,
+            title=name,
+            tenant=tenant,
+            enabled=1,
+            published_tenant=tenant if published else "",
+            published_context=context if published else "",
+            published_priority=10,
+            published_xml='<extension name="%s"/>' % name if published else "",
+        )
+
+    def test_public_context_routes_dids_for_all_tenants(self):
+        self.fake = PublicFrappe(
+            tenants=[
+                SimpleNamespace(name="accept-a", enabled=1),
+                SimpleNamespace(name="accept-b", enabled=1),
+            ],
+            dids=[
+                SimpleNamespace(number="+14155550101", tenant="accept-a", enabled=1, flow="accept-a::Flow A"),
+                SimpleNamespace(number="14155550102", tenant="accept-b", enabled=1, flow="accept-b::Flow B"),
+            ],
+            flows=[
+                self._flow("accept-a::Flow A", "accept-a", "accept_a"),
+                self._flow("accept-b::Flow B", "accept-b", "accept_b"),
+            ],
+        )
+        call_setup._frappe = lambda: self.fake
+
+        xml = serve_dialplan("public")
+
+        self.assertIn('<context name="public">', xml)
+        self.assertIn("+14155550101 XML accept_a", xml)
+        self.assertIn("14155550102 XML accept_b", xml)
+        self.assertNotIn('<context name="accept_a">', xml)
+        self.assertIn("fs_switch:xml:current:dialplan:all:public", self.fake.cache.values)
+        self.assertIn("1000 XML default", xml)
+
+    def test_public_context_uses_the_tenant_main_did_for_an_unassigned_did(self):
+        self.fake = PublicFrappe(
+            tenants=[
+                SimpleNamespace(
+                    name="accept-a",
+                    enabled=1,
+                    main_did="+14155550100",
+                    default_context="accept_a",
+                )
+            ],
+            dids=[
+                SimpleNamespace(
+                    number="+14155550109",
+                    tenant="accept-a",
+                    enabled=1,
+                    flow="",
+                )
+            ],
+            flows=[],
+            main_did="",
+        )
+        call_setup._frappe = lambda: self.fake
+
+        xml = serve_dialplan("public")
+
+        self.assertIn("+14155550100 XML accept_a", xml)
+        self.assertIn('expression="^\\+?14155550109$"', xml)
+
+    def test_public_context_skips_disabled_or_unpublished_routes(self):
+        self.fake = PublicFrappe(
+            tenants=[
+                SimpleNamespace(name="accept-a", enabled=1),
+                SimpleNamespace(name="old", enabled=0),
+            ],
+            dids=[
+                SimpleNamespace(number="+14155550101", tenant="accept-a", enabled=1, flow="accept-a::Draft"),
+                SimpleNamespace(number="+14155550102", tenant="accept-a", enabled=1, flow="accept-a::Published"),
+                SimpleNamespace(number="+14155550103", tenant="old", enabled=1, flow="old::Published"),
+                SimpleNamespace(number="+14155550104", tenant="accept-a", enabled=1, flow="accept-a::Other"),
+                SimpleNamespace(number="+14155550105", tenant="accept-a", enabled=1, flow="accept-a::Public"),
+                SimpleNamespace(number="+14155550106", tenant="accept-a", enabled=0, flow="accept-a::Published"),
+            ],
+            flows=[
+                self._flow("accept-a::Draft", "accept-a", "accept_a", published=False),
+                self._flow("accept-a::Published", "accept-a", "accept_a"),
+                self._flow("old::Published", "old", "old"),
+                self._flow("accept-a::Other", "accept-b", "accept_b"),
+                self._flow("accept-a::Public", "accept-a", "public"),
+            ],
+            main_did="",
+        )
+        call_setup._frappe = lambda: self.fake
+
+        xml = serve_dialplan("public")
+
+        self.assertIn("+14155550102 XML accept_a", xml)
+        self.assertNotIn("+14155550101", xml)
+        self.assertNotIn("+14155550103", xml)
+        self.assertNotIn("+14155550104", xml)
+        self.assertNotIn("+14155550105", xml)
+        self.assertNotIn("+14155550106", xml)
+
+
 class RecordingFrappe:
     def __init__(self, default_tenant="default", tenants=None):
         self.calls = []

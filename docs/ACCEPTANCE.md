@@ -275,6 +275,20 @@ Container rebuild:
 - The `webrtc` profile in the recreated FreeSWITCH container contained
   `dtmf-type=info`, `liberal-dtmf=true` and `apply-candidate-acl=rfc1918.auto`.
 
+Public DID routing:
+
+- The public dialplan response contains one transfer per enabled DID. The
+  acceptance A DID `+14155550101` transfers to `accept_a`; the acceptance B DID
+  `+14155550102` transfers to `accept_b`.
+- An unassigned test DID transferred to the Tenant main number in the Tenant
+  context.
+- Disabling or deleting the test DID and clearing the Tenant main number removed
+  its route after cache invalidation.
+- The HTTP XML-curl response with `section=dialplan&context=public` returned
+  200 and the expected public route map.
+- A real carrier-originated call through the public context still needs a live
+  carrier/trunk pass.
+
 One check did not pass: stopping MariaDB makes HTTP XML-curl return 500 before
 the handler runs because Frappe’s request middleware needs the database. The
 handler-level cache and secret hash are still useful, but they are not a full

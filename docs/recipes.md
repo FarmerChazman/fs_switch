@@ -119,9 +119,9 @@ Test with:
 The DID **Assigned Flow** is documentation. The regex does the matching. If the
 carrier adds a country code or a `+`, the pattern must accept it.
 
-For the current public-context limitation, see [DIDs and inbound
-numbers](dids.md). Additional DIDs need a carrier/FreeSWITCH route beyond the
-inventory record.
+The public DID map routes enabled DIDs to their Published Flow or the Tenant
+main number. See [DIDs and inbound numbers](dids.md) for the exact fallback and
+cache behavior.
 
 ## Recipe 5: ring a group, then voicemail
 

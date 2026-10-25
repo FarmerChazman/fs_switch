@@ -28,7 +28,7 @@ current console.
 | **Queues and call center** | Partial | Queues, tiers, strategies, backup queues, wallboard, agent status. | Hold history, per-agent metrics, queue events, wrap-up. |
 | **Live operations** | Partial | Channels, registrations, agents, wallboard, hangup/transfer, monitor actions. | In-console audio, call-path highlighting, real-time queue metrics. |
 | **Carrier layer** | Partial | FS Gateway CRUD with proxy, registration, credentials, codecs. | Gateway XML generation, templates, failover, ACL/TLS UI, LCR. |
-| **DIDs and inbound routing** | Partial | Tenant DID inventory, normalization, Flow assignment. | Per-DID public routing; per-Tenant main DID; multi-Tenant public path. |
+| **DIDs and inbound routing** | Partial | Tenant DID inventory, normalization, public DID routes, Tenant main-number fallback. | Real carrier acceptance, unknown-DID policy, multi-Tenant live test. |
 | **Media and prompts** | Partial | Prompt paths, MOH, recording path settings. | Upload, transcoding, prompt versioning, media browser, retention. |
 | **Records and voicemail** | Partial | Voicemail/record nodes and storage settings. | CDR, recording browser, voicemail box UI, consent/retention. |
 | **Logic extensions** | Partial | IVR menu, time, ring group, queue, voicemail, transfer, conference, park, set, sleep, record, hangup. | Holiday calendar, collect-digits, webhook, TTS/ASR, AI agents, subflows. |
@@ -39,15 +39,14 @@ current console.
 
 ### P0 - make live inbound routing correct
 
-1. **Per-DID public routing.**
-   The `public` context currently forwards only the global main DID into the
-   global default context. Generate public-context transfers for every enabled
-   DID, or define an explicit per-Tenant inbound map. Add tests for plus/no-plus,
-   multiple DIDs and two Tenants.
+1. **Public DID acceptance.**
+   Per-DID public routing and Tenant main-number fallback are implemented and
+   covered by XML tests. Validate a real carrier call for two DIDs in two
+   Tenants, plus/no-plus variants, an unpublished Flow and a disabled DID.
 
-2. **Per-Tenant main DID.**
-   `FS Switch Settings → Main inbound number` is global. A Tenant needs its own
-   main inbound number for carrier hand-off and for public-context transfer.
+2. **Unknown-DID policy.**
+   Decide whether an unknown number should fail closed or use the global
+   main-DID fallback. Record the decision in the routing tests and docs.
 
 3. **Gateway generation.**
    `FS Gateway` records are inventory only. Generate the matching FreeSWITCH
@@ -110,11 +109,11 @@ The current documentation covers the shipped and partial paths:
 | [`tenants.md`](tenants.md) | Tenant fields, roles, members, switching, isolation. | Members must exist as Frappe users. |
 | [`extensions.md`](extensions.md) | SIP endpoint, password, caller ID, agent status, WebRTC. | No embedded softphone. |
 | [`queues.md`](queues.md) | Strategies, agents, tiers, backup queues, live metrics. | No historical reporting. |
-| [`dids.md`](dids.md) | Inventory, normalization, Flow regex alignment, public-context limit. | Per-DID public routing is missing. |
+| [`dids.md`](dids.md) | Inventory, normalization, Flow regex alignment, public DID routes and Tenant fallback. | Real carrier acceptance remains. |
 | [`gateways.md`](gateways.md) | Gateway fields, trunk hand-off, verification. | Record does not generate FreeSWITCH config. |
 | [`flows.md`](flows.md) | Nodes, ports, validation, simulator, XML, publish, rollback. | No media manager; catch-all validation gap. |
 | [`live-operations.md`](live-operations.md) | Channels, registrations, agents, wallboard, monitoring. | No in-console audio; live history limited. |
-| [`settings.md`](settings.md) | XML-curl, ESL, main DID/default context, media, recording. | Main DID/default context are global. |
+| [`settings.md`](settings.md) | XML-curl, ESL, global main DID/default context, media, recording. | Global fallback is separate from Tenant main numbers. |
 | [`troubleshooting.md`](troubleshooting.md) | Layer-by-layer diagnosis and useful commands. | Not a substitute for FreeSWITCH/carrier logs. |
 | [`limitations.md`](limitations.md) | Consolidated alpha limitations and workarounds. | Read before production. |
 | [`recipes.md`](recipes.md) | Menu, after-hours, queue and DID examples. | Holiday/subflow nodes are not implemented. |
