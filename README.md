@@ -66,6 +66,15 @@ flow schema and compiler are documented in
 - [`docs/README.md`](docs/README.md) — documentation index and operating notes
 - [`docs/installation.md`](docs/installation.md) — Docker and existing-bench installation
 - [`docs/first-steps.md`](docs/first-steps.md) — set up an extension, Flow and first test call
+- [`docs/tenants.md`](docs/tenants.md) — Tenants, SIP domains, contexts and membership
+- [`docs/extensions.md`](docs/extensions.md) — extensions, SIP registration and agent status
+- [`docs/queues.md`](docs/queues.md) — queues, strategies, agents and live metrics
+- [`docs/dids.md`](docs/dids.md) — inbound numbers and Flow destination patterns
+- [`docs/gateways.md`](docs/gateways.md) — carrier gateway records and trunk setup
+- [`docs/flows.md`](docs/flows.md) — semantic Flow nodes, simulator and publishing
+- [`docs/live-operations.md`](docs/live-operations.md) — Channels, Agents, Wallboard and monitoring
+- [`docs/settings.md`](docs/settings.md) — XML-curl, ESL, media and global settings
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — layer-by-layer diagnosis
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — product direction and scope
 - [`docs/STATUS.md`](docs/STATUS.md) — current status against the original source documents
 - [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) — live bench, permissions, Socket.IO and XML-curl acceptance checklist

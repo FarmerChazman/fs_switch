@@ -253,19 +253,64 @@ for each agent:
 
 *Agent availability and current state*
 
-## 7. What next
+## 7. Prepare for inbound carrier traffic
 
-- Add inbound numbers in **Telephony → DIDs** and align the Flow destination
-  pattern with the carrier's number format.
-- Add a second Tenant in **Administration**, give it its own SIP domain and
-  context, and invite its members.
-- Add an **FS Gateway** before connecting a carrier trunk.
+The first Flow is enough to test a softphone. Before a carrier goes live, add
+the Tenant's inbound numbers and connect a gateway.
+
+### Add inbound numbers
+
+1. Open **Telephony → DIDs → New DID**.
+2. Add the number in the form the carrier sends it, including `+` if present.
+3. Enable the DID and optionally select the Flow that should handle it.
+4. Make the Flow's **Destination** regex match the carrier's exact format.
+
+For example, a carrier sending `+14155550101` needs a Flow pattern such as
+`^\+14155550101$`; a carrier sending `14155550101` needs
+`^14155550101$`. Use `^\+?14155550101$` when both forms are possible. The DID
+record is inventory: the Flow pattern still does the routing. See
+[DIDs and inbound numbers](dids.md).
+
+### Add a second Tenant
+
+1. Open **Administration → Tenants → New Tenant** as a System Manager.
+2. Give the Tenant a unique SIP domain and default context.
+3. Add members by their existing Frappe user email and choose Admin,
+   Supervisor or Agent.
+4. Save, then switch to the Tenant in the top bar.
+
+The console does not create or invite the Frappe user. Create or invite the user
+in **Open Desk → User** first, then add the membership. See
+[Tenants and membership](tenants.md).
+
+### Add a gateway before the carrier trunk
+
+1. Open **Telephony → Gateways → New Gateway**.
+2. Record the carrier proxy, registration credentials, caller ID and context.
+3. Create the matching SIP gateway in FreeSWITCH and load it.
+4. Add the inbound numbers and align the Flow patterns.
+5. Test both directions.
+
+In this alpha the **FS Gateway** record is inventory only; it does not generate
+the FreeSWITCH gateway or register to the carrier. The shared `public` context
+forwards only the global main DID into the global default context, so a second
+Tenant or additional DID needs a context-correct route. See
+[Gateways and carrier trunks](gateways.md).
+
+## 8. What next
+
+- Review [`DIDs and inbound numbers`](dids.md), [`Gateways and carrier trunks`](gateways.md),
+  [`Queues and agents`](queues.md) and [`Flows`](flows.md) for the detailed
+  operational rules.
 - Review [`operations.md`](operations.md) for publish, rollback, cache, ESL and
   troubleshooting.
 - Read [`flow-model.md`](flow-model.md) for the Flow schema, compiler,
   simulator and publish lifecycle.
 - Read [`ui.md`](ui.md) for the console layout and role model.
+- Use [`troubleshooting.md`](troubleshooting.md) before changing several layers
+  at once.
 
 The current alpha still has limitations: no embedded softphone, no in-console
-monitor audio, no media library and no full CDR/recording history. Check
+monitor audio, no media library, no automatic gateway generation, no per-DID
+public routing and no full CDR/recording history. Check
 [`DEFERRED.md`](DEFERRED.md) before planning a production rollout.

@@ -15,6 +15,25 @@ for the rest of the documentation.
 | [`PRODUCT.md`](PRODUCT.md) | You need the product direction, personas and scope. |
 | [`STATUS.md`](STATUS.md) | You need the current build status against the original source documents. |
 | [`ACCEPTANCE.md`](ACCEPTANCE.md) | You are running the first live bench, permission, Socket.IO or XML-curl acceptance pass. |
+
+## User guide
+
+| Document | Read it when |
+|---|---|
+| [`tenants.md`](tenants.md) | You are creating a Tenant, adding members or switching Tenant scope. |
+| [`extensions.md`](extensions.md) | You are creating an endpoint, SIP password or agent status. |
+| [`queues.md`](queues.md) | You are configuring a queue, agents, tiers, hold music or wait time. |
+| [`dids.md`](dids.md) | You are adding inbound numbers and aligning Flow destination patterns. |
+| [`gateways.md`](gateways.md) | You are preparing a carrier trunk and its FS Gateway record. |
+| [`flows.md`](flows.md) | You are building, simulating, publishing or rolling back a Flow. |
+| [`live-operations.md`](live-operations.md) | You are using Channels, Registrations, Agents, the wallboard or monitoring. |
+| [`settings.md`](settings.md) | You are changing XML-curl, ESL, media, recording or global routing settings. |
+| [`troubleshooting.md`](troubleshooting.md) | You need a layer-by-layer diagnosis before changing configuration. |
+
+## Reference and operations
+
+| Document | Read it when |
+|---|---|
 | [`architecture.md`](architecture.md) | You need the control-plane/data-plane boundaries, cache or live-event design. |
 | [`flow-model.md`](flow-model.md) | You are changing the Flow graph, node registry, compiler, simulator, publish lifecycle or diff. |
 | [`ui.md`](ui.md) | You are changing the console layout, semantic canvas, live views or publish/diff UI. |
